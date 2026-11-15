@@ -35,18 +35,18 @@ h1{font-size:clamp(18px,4vw,22px);margin:0}#topbar{display:flex;align-items:cent
 #status{font-size:15px;min-height:22px;color:var(--muted)}
 #status b{color:var(--text)}
 #board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));width:var(--bs);height:var(--bs);flex:0 0 auto;overflow:hidden;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.35);user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-#board:fullscreen{--bs:min(100vw,100vh);--cell:calc(var(--bs)/8);width:var(--bs);height:var(--bs);max-width:100vw;max-height:100vh;border-radius:0;box-shadow:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
-#board.pseudo-fullscreen{--bs:min(100vw,100vh);--cell:calc(var(--bs)/8);position:fixed;z-index:10000;left:50%;top:50%;transform:translate(-50%,-50%);width:var(--bs);height:var(--bs);max-width:100vw;max-height:100vh;border-radius:0;box-shadow:none}
-@supports(height:100dvh){#board:fullscreen,#board.pseudo-fullscreen{--bs:min(100vw,100dvh)}}
+/* Fullscreen selalu mempertahankan papan persegi 1:1 dan muat di sisi layar terpendek */
+#board:fullscreen,#board.pseudo-fullscreen{--bs:min(100vw,100vh);--cell:calc(var(--bs)/8);width:var(--bs);height:var(--bs);aspect-ratio:1/1;max-width:100vw;max-height:100vh;position:fixed;inset:0;margin:auto;border-radius:0;box-shadow:none;z-index:10000}
+@supports(height:100dvh){#board:fullscreen,#board.pseudo-fullscreen{--bs:min(100vw,100dvh);max-height:100dvh}}
 #board.fl{transform:rotate(180deg)}#board.fl .sq span{transform:rotate(180deg)}
-#board.fl:fullscreen,#board.fl.pseudo-fullscreen{transform:translate(-50%,-50%) rotate(180deg)}
 .sq{display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;font-size:calc(var(--cell)*.82);line-height:1;font-family:"Segoe UI Symbol","Noto Sans Symbols 2","Apple Symbols","DejaVu Sans",serif}
 .sq span{display:block;position:relative;z-index:1;line-height:1;margin-top:-2%}.tp{font-size:1.06em}.tr{font-size:.98em}
 .lt{background:#ebecd0}
 .dk{background:#779556}
 /* Tema papan catur */
-#board.theme-wood .lt{background:repeating-linear-gradient(7deg,#e9bd80 0 5px,#dba66a 6px 10px,#efc991 11px 15px)}
-#board.theme-wood .dk{background:repeating-linear-gradient(7deg,#89512e 0 5px,#754126 6px 10px,#9b6037 11px 15px)}
+/* Serat kayu dibuat halus dan tidak berulang agar tidak menimbulkan ilusi optik */
+#board.theme-wood .lt{background:linear-gradient(145deg,#f0d3a4 0%,#e5bd87 48%,#d9aa70 100%)}
+#board.theme-wood .dk{background:linear-gradient(145deg,#a96d42 0%,#89532f 52%,#754326 100%)}
 #board.theme-marble .lt{background:linear-gradient(135deg,#f8f8f5,#cfd5d8)}
 #board.theme-marble .dk{background:linear-gradient(135deg,#68747e,#303a46)}
 #board.theme-blue .lt{background:linear-gradient(135deg,#e4f2ff,#b9d8f4)}
@@ -303,7 +303,8 @@ function render() {
     h += `<div class="${cl}" data-i="${i}">${lab(r, c)}${p ? `<span class="${isW(p) ? 'pw' : 'pb'} t${p.toLowerCase()}">${G[p.toUpperCase()]}\uFE0E</span>` : ''}</div>`;
   }
   board.innerHTML = h;
-  board.className = (me === 'b' && (ai() || on()) ? 'fl ' : '') + 'theme-' + (themeSelect.value || 'classic');
+  const keepPseudoFullscreen = board.classList.contains('pseudo-fullscreen');
+  board.className = (me === 'b' && (ai() || on()) ? 'fl ' : '') + 'theme-' + (themeSelect.value || 'classic') + (keepPseudoFullscreen ? ' pseudo-fullscreen' : '');
   const who = s.turn === 'w' ? 'Putih' : 'Hitam';
   $('status').innerHTML = !L.length
     ? (chk ? `<b>Skakmat!</b> ${s.turn === 'w' ? 'Hitam' : 'Putih'} menang 🎉` : '<b>Remis</b> (stalemat)')
