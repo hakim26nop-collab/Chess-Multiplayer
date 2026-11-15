@@ -44,6 +44,22 @@ h1{font-size:clamp(18px,4vw,22px);margin:0}#topbar{display:flex;align-items:cent
 .sq span{display:block;position:relative;z-index:1;line-height:1;margin-top:-2%}.tp{font-size:1.06em}.tr{font-size:.98em}
 .lt{background:#ebecd0}
 .dk{background:#779556}
+/* Tema papan catur */
+#board.theme-wood .lt{background:repeating-linear-gradient(7deg,#e9bd80 0 5px,#dba66a 6px 10px,#efc991 11px 15px)}
+#board.theme-wood .dk{background:repeating-linear-gradient(7deg,#89512e 0 5px,#754126 6px 10px,#9b6037 11px 15px)}
+#board.theme-marble .lt{background:linear-gradient(135deg,#f8f8f5,#cfd5d8)}
+#board.theme-marble .dk{background:linear-gradient(135deg,#68747e,#303a46)}
+#board.theme-blue .lt{background:linear-gradient(135deg,#e4f2ff,#b9d8f4)}
+#board.theme-blue .dk{background:linear-gradient(135deg,#3979b9,#24517f)}
+#board.theme-purple .lt{background:linear-gradient(135deg,#f2e8ff,#d9c2ef)}
+#board.theme-purple .dk{background:linear-gradient(135deg,#8055a8,#563578)}
+#board.theme-slate .lt{background:linear-gradient(135deg,#e5e7eb,#c5cbd3)}
+#board.theme-slate .dk{background:linear-gradient(135deg,#596574,#35404d)}
+#board.theme-forest .lt{background:linear-gradient(135deg,#dcebd2,#b5d0a4)}
+#board.theme-forest .dk{background:linear-gradient(135deg,#47734b,#284d32)}
+#board.theme-wood .lt i{color:#754126}#board.theme-wood .dk i{color:#f4d5a9}
+#board.theme-marble .lt i,#board.theme-blue .lt i,#board.theme-purple .lt i,#board.theme-slate .lt i,#board.theme-forest .lt i{color:#344454}
+#board.theme-marble .dk i,#board.theme-blue .dk i,#board.theme-purple .dk i,#board.theme-slate .dk i,#board.theme-forest .dk i{color:#f5f5f5}
 .sq i{position:absolute;z-index:2;font-style:normal;font-weight:700;font-size:calc(var(--cell)*.2);line-height:1;pointer-events:none}
 .rk{top:3px;left:3px}.fk{bottom:2px;right:3px}.lt i{color:#779556}.dk i{color:#ebecd0}
 #board.fl .sq i{transform:rotate(180deg)}#board.fl .rk{top:auto;left:auto;bottom:3px;right:3px}#board.fl .fk{bottom:auto;right:auto;top:2px;left:3px}
@@ -67,6 +83,17 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
   <div id="topbar"><h1>♟ Catur</h1><button id="fullscreen" class="alt" type="button">⛶ Layar Penuh</button></div>
   <div id="status"></div>
   <div id="board"></div>
+  <div class="row">
+    <select id="boardTheme" aria-label="Tema papan catur">
+      <option value="classic">Papan: Klasik</option>
+      <option value="wood">Papan: Kayu</option>
+      <option value="marble">Papan: Marmer</option>
+      <option value="blue">Papan: Biru</option>
+      <option value="purple">Papan: Ungu</option>
+      <option value="slate">Papan: Abu-abu</option>
+      <option value="forest">Papan: Hutan</option>
+    </select>
+  </div>
   <div class="row">
     <select id="mode">
       <option value="e">Komputer: Mudah</option>
@@ -118,6 +145,12 @@ document.addEventListener('keydown', e => {
     syncFullscreenButton();
   }
 });
+const themeSelect = $('boardTheme');
+try { themeSelect.value = localStorage.getItem('chessBoardTheme') || 'classic'; } catch(e) {}
+themeSelect.onchange = () => {
+  try { localStorage.setItem('chessBoardTheme', themeSelect.value); } catch(e) {}
+  render();
+};
 const G = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟' };
 const V = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
 const dN = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
@@ -270,7 +303,7 @@ function render() {
     h += `<div class="${cl}" data-i="${i}">${lab(r, c)}${p ? `<span class="${isW(p) ? 'pw' : 'pb'} t${p.toLowerCase()}">${G[p.toUpperCase()]}\uFE0E</span>` : ''}</div>`;
   }
   board.innerHTML = h;
-  board.className = me === 'b' && (ai() || on()) ? 'fl' : '';
+  board.className = (me === 'b' && (ai() || on()) ? 'fl ' : '') + 'theme-' + (themeSelect.value || 'classic');
   const who = s.turn === 'w' ? 'Putih' : 'Hitam';
   $('status').innerHTML = !L.length
     ? (chk ? `<b>Skakmat!</b> ${s.turn === 'w' ? 'Hitam' : 'Putih'} menang 🎉` : '<b>Remis</b> (stalemat)')
