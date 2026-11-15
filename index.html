@@ -33,7 +33,18 @@ h1{font-size:clamp(18px,4vw,22px);margin:0}#topbar{display:flex;align-items:cent
 }
 @media (max-height:520px) and (orientation:landscape){:root{--bs:min(48vw,72svh,420px)}body{align-items:flex-start}.wrap{margin:auto}.wrap:fullscreen,.wrap.pseudo-fullscreen{--bs:min(52vw,76svh,520px);flex-direction:row;flex-wrap:wrap;align-content:center;align-items:center;justify-content:center;gap:8px 16px}.wrap:fullscreen #topbar,.wrap.pseudo-fullscreen #topbar{width:100%}.wrap:fullscreen #board,.wrap.pseudo-fullscreen #board{flex:0 0 var(--bs)}.wrap:fullscreen .row,.wrap.pseudo-fullscreen .row{flex:1 1 180px;max-width:320px}}
 #moveHistory{width:100%;max-width:var(--bs);background:var(--card);color:var(--text);border-radius:12px;padding:9px 12px;box-shadow:0 1px 6px rgba(0,0,0,.12);font-size:13px}
-#moveHistory summary{cursor:pointer;font-weight:700;user-select:none}
+#moveHistory summary,#settings summary{cursor:pointer;font-weight:700;user-select:none}
+#settings{width:100%;max-width:var(--bs);background:var(--card);color:var(--text);border-radius:12px;padding:11px 13px;box-shadow:0 1px 6px rgba(0,0,0,.12);font-size:14px}
+#settings[open] summary{margin-bottom:10px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid rgba(127,127,127,.16)}
+.setting-row label{font-weight:600}
+.setting-row select{flex:0 1 52%;padding:8px;min-height:38px}
+.setting-row input[type=checkbox]{flex:0 0 22px;width:22px;height:22px;min-height:22px;accent-color:var(--accent);box-shadow:none}
+#board.gfx-low{box-shadow:none}
+#board.gfx-low .sq span{filter:none}
+#board.gfx-high{box-shadow:0 8px 28px rgba(0,0,0,.42)}
+#board.gfx-high .sq span{filter:drop-shadow(0 2px 2px rgba(0,0,0,.28))}
+#board.gfx-high .sq{transition:background-color .12s,box-shadow .12s}
 #moveList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 12px;max-height:120px;overflow:auto;margin-top:9px;font-variant-numeric:tabular-nums}
 .move-pair{display:flex;gap:8px;padding:3px 5px;border-bottom:1px solid rgba(127,127,127,.18)}
 .move-no{color:var(--muted);min-width:22px}
@@ -114,8 +125,9 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
     <summary>Riwayat langkah <span id="moveCount">(0)</span></summary>
     <div id="moveList"><span>Belum ada langkah.</span></div>
   </details>
-  <div class="row">
-    <select id="boardTheme" aria-label="Tema papan catur">
+  <details id="settings">
+    <summary>⚙️ Pengaturan</summary>
+    <div class="setting-row"><label for="boardTheme">Tema papan</label><select id="boardTheme" aria-label="Tema papan catur">
       <option value="classic">Papan: Klasik</option>
       <option value="wood">Papan: Kayu</option>
       <option value="marble">Papan: Marmer</option>
@@ -123,8 +135,10 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
       <option value="purple">Papan: Ungu</option>
       <option value="slate">Papan: Abu-abu</option>
       <option value="forest">Papan: Hutan</option>
-    </select>
-  </div>
+    </select></div>
+    <div class="setting-row"><label for="orientation">Aktifkan orientasi otomatis</label><input id="orientation" type="checkbox" checked></div>
+    <div class="setting-row"><label for="graphics">Grafik permainan</label><select id="graphics"><option value="standard">Standar</option><option value="low">Ringan</option><option value="high">Tinggi</option></select></div>
+  </details>
   <div class="row">
     <select id="mode">
       <option value="e">Komputer: Mudah</option>
@@ -198,6 +212,11 @@ document.addEventListener('keydown', e => {
   }
 });
 const themeSelect = $('boardTheme');
+const orientationToggle = $('orientation');
+const graphicsSelect = $('graphics');
+try { orientationToggle.checked = localStorage.getItem('chessAutoOrientation') !== 'false'; graphicsSelect.value = localStorage.getItem('chessGraphics') || 'standard'; } catch(e) {}
+orientationToggle.onchange = () => { try { localStorage.setItem('chessAutoOrientation', orientationToggle.checked); } catch(e) {} render(); };
+graphicsSelect.onchange = () => { try { localStorage.setItem('chessGraphics', graphicsSelect.value); } catch(e) {} render(); };
 try { themeSelect.value = localStorage.getItem('chessBoardTheme') || 'classic'; } catch(e) {}
 themeSelect.onchange = () => {
   try { localStorage.setItem('chessBoardTheme', themeSelect.value); } catch(e) {}
@@ -335,8 +354,8 @@ function doMove(m) {
 }
 
 function boardFlipped() {
-  if (on()) return me === 'b';
-  if (ai()) return me === 'b';
+  if (!orientationToggle.checked) return false;
+  if (on() || ai()) return me === 'b';
   if ($('mode').value === '2') return s.turn === 'b';
   return false;
 }
@@ -361,7 +380,7 @@ function render() {
     h += `<div class="${cl}" data-i="${i}">${lab(r, c)}${p ? `<span class="${isW(p) ? 'pw' : 'pb'} t${p.toLowerCase()}">${G[p.toUpperCase()]}\uFE0E</span>` : ''}</div>`;
   }
   board.innerHTML = h;
-  board.className = (boardFlipped() ? 'fl ' : '') + 'theme-' + (themeSelect.value || 'classic');
+  board.className = (boardFlipped() ? 'fl ' : '') + 'theme-' + (themeSelect.value || 'classic') + ' gfx-' + (graphicsSelect.value || 'standard');
   const pairs = [];
   for (let n = 0; n + 1 < mv.length; n += 4) {
     const from = A.indexOf(mv[n]) , to = A.indexOf(mv[n + 1]);
