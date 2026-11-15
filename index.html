@@ -37,26 +37,20 @@ h1{font-size:clamp(18px,4vw,22px);margin:0}#topbar{display:flex;align-items:cent
 #board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));width:var(--bs);height:var(--bs);flex:0 0 auto;overflow:hidden;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.35);user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 /* Fullscreen: kunci lebar DAN tinggi ke nilai sama agar tidak pernah melebar 16:9 */
 #board:fullscreen,#board.pseudo-fullscreen{
-  --bs:min(100vw,100vh);
+  --bs:var(--fs-board-size,min(100vw,100dvh));
   --cell:calc(var(--bs)/8);
   position:fixed!important;
-  left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;
-  inset:auto!important;
-  width:min(100vw,100vh)!important;
-  height:min(100vw,100vh)!important;
-  min-width:0!important;min-height:0!important;
-  max-width:min(100vw,100vh)!important;max-height:min(100vw,100vh)!important;
-  aspect-ratio:1/1;margin:0!important;
-  transform:translate(-50%,-50%);
+  inset:0!important;
+  width:var(--bs)!important;
+  height:var(--bs)!important;
+  min-width:var(--bs)!important;min-height:var(--bs)!important;
+  max-width:var(--bs)!important;max-height:var(--bs)!important;
+  aspect-ratio:1/1!important;
+  margin:auto!important;
+  transform:none!important;
   border-radius:0;box-shadow:none;z-index:10000;
 }
-@supports(height:100dvh){
-  #board:fullscreen,#board.pseudo-fullscreen{
-    --bs:min(100vw,100dvh);
-    width:min(100vw,100dvh)!important;height:min(100vw,100dvh)!important;
-    max-width:min(100vw,100dvh)!important;max-height:min(100vw,100dvh)!important;
-  }
-}
+#board.fl:fullscreen,#board.fl.pseudo-fullscreen{transform:rotate(180deg)!important}
 #board.fl{transform:rotate(180deg)}#board.fl .sq span{transform:rotate(180deg)}
 #board.fl:fullscreen,#board.fl.pseudo-fullscreen{transform:translate(-50%,-50%) rotate(180deg)}
 .sq{display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;font-size:calc(var(--cell)*.82);line-height:1;font-family:"Segoe UI Symbol","Noto Sans Symbols 2","Apple Symbols","DejaVu Sans",serif}
@@ -144,8 +138,21 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
 const $ = id => document.getElementById(id), board = $('board');
 const fsButton = $('fullscreen');
 function syncFullscreenButton() {
-  fsButton.textContent = (document.fullscreenElement === board || board.classList.contains('pseudo-fullscreen')) ? '✕ Keluar Full Screen' : '⛶ Papan Full Screen';
+  const active = document.fullscreenElement === board || board.classList.contains('pseudo-fullscreen');
+  if (active) {
+    const vv = window.visualViewport;
+    const w = vv ? vv.width : window.innerWidth;
+    const h = vv ? vv.height : window.innerHeight;
+    const size = Math.max(1, Math.floor(Math.min(w, h)));
+    board.style.setProperty('--fs-board-size', size + 'px');
+  } else {
+    board.style.removeProperty('--fs-board-size');
+  }
+  fsButton.textContent = active ? '✕ Keluar Full Screen' : '⛶ Papan Full Screen';
 }
+window.addEventListener('resize', syncFullscreenButton);
+window.addEventListener('orientationchange', syncFullscreenButton);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', syncFullscreenButton);
 fsButton.onclick = async () => {
   try {
     if (document.fullscreenElement === board) await document.exitFullscreen();
