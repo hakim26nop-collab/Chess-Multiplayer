@@ -76,7 +76,12 @@ h1{font-size:clamp(18px,4vw,22px);margin:0}#topbar{display:flex;align-items:cent
   border-radius:0;box-shadow:none;
 }
 .wrap:fullscreen #board.fl,.wrap.pseudo-fullscreen #board.fl{transform:rotate(180deg)!important}
-.sq{display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;font-size:calc(var(--cell)*.82);line-height:1;font-family:"Segoe UI Symbol","Noto Sans Symbols 2","Apple Symbols","DejaVu Sans",serif}
+.sq{display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;font-size:calc(var(--cell)*.82);line-height:1;font-family:"Segoe UI Symbol","Noto Sans Symbols 2","Apple Symbols","DejaVu Sans",serif;transition:background-color .22s ease,box-shadow .22s ease}
+.sq span{will-change:transform}
+button,select,#settings,#moveHistory{transition:transform .18s ease,box-shadow .18s ease,background-color .2s ease}
+button:active{transform:scale(.97)}
+@media(hover:hover){button:hover,select:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.16)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
 .sq span{display:block;position:relative;z-index:1;line-height:1;margin-top:-2%}.tp{font-size:1.06em}.tr{font-size:.98em}
 .lt{background:#ebecd0}
 .dk{background:#779556}
@@ -379,8 +384,22 @@ function render() {
     if (tg.has(i)) cl += p ? ' cap' : ' tg';
     h += `<div class="${cl}" data-i="${i}">${lab(r, c)}${p ? `<span class="${isW(p) ? 'pw' : 'pb'} t${p.toLowerCase()}">${G[p.toUpperCase()]}\uFE0E</span>` : ''}</div>`;
   }
+  const movingPieceRect = last ? board.querySelector('.sq[data-i="' + last[0] + '"] span')?.getBoundingClientRect() : null;
   board.innerHTML = h;
   board.className = (boardFlipped() ? 'fl ' : '') + 'theme-' + (themeSelect.value || 'classic') + ' gfx-' + (graphicsSelect.value || 'standard');
+  if (movingPieceRect && last && typeof Element.prototype.animate === 'function') {
+    const targetPiece = board.querySelector('.sq[data-i="' + last[1] + '"] span');
+    const targetSquare = board.querySelector('.sq[data-i="' + last[1] + '"]');
+    if (targetPiece && targetSquare) {
+      const targetRect = targetSquare.getBoundingClientRect();
+      const dx = movingPieceRect.left - targetRect.left;
+      const dy = movingPieceRect.top - targetRect.top;
+      targetPiece.animate(
+        [{ transform: 'translate(' + dx + 'px,' + dy + 'px)' }, { transform: 'translate(0,0)' }],
+        { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)' }
+      );
+    }
+  }
   const pairs = [];
   for (let n = 0; n + 1 < mv.length; n += 4) {
     const from = A.indexOf(mv[n]) , to = A.indexOf(mv[n + 1]);
