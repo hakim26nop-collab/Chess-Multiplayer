@@ -12,7 +12,7 @@
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center}
 .wrap{width:var(--bs);display:flex;flex-direction:column;gap:12px}
-h1{font-size:20px;margin:0}
+h1{font-size:20px;margin:0}#topbar{display:flex;align-items:center;justify-content:space-between;gap:10px}#fullscreen{flex:0 0 auto;padding:9px 13px;font-size:14px} .wrap:fullscreen{width:min(96vw,720px);--bs:min(92vw,72vh,720px);gap:10px;padding:12px;box-sizing:border-box;overflow:auto;background:var(--bg);color:var(--text)}.wrap:fullscreen #board{width:var(--bs);height:var(--bs)}
 #status{font-size:15px;min-height:22px;color:var(--muted)}
 #status b{color:var(--text)}
 #board{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:var(--bs);height:var(--bs);box-sizing:border-box;overflow:hidden;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.35);user-select:none;-webkit-tap-highlight-color:transparent}
@@ -41,7 +41,7 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
 </head>
 <body>
 <div class="wrap">
-  <h1>♟ Catur</h1>
+  <div id="topbar"><h1>♟ Catur</h1><button id="fullscreen" class="alt" type="button">⛶ Layar Penuh</button></div>
   <div id="status"></div>
   <div id="board"></div>
   <div class="row">
@@ -72,6 +72,22 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
 </div>
 <script>
 const $ = id => document.getElementById(id), board = $('board');
+const fsButton = $('fullscreen');
+function syncFullscreenButton() {
+  fsButton.textContent = document.fullscreenElement === $('wrap') ? '✕ Keluar Full Screen' : '⛶ Layar Penuh';
+}
+fsButton.onclick = async () => {
+  const target = document.querySelector('.wrap');
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else if (target.requestFullscreen) await target.requestFullscreen();
+    else { alert('Browser ini belum mendukung mode layar penuh. Coba gunakan Chrome.'); }
+  } catch (err) {
+    alert('Mode layar penuh tidak dapat dibuka. Coba lagi melalui Chrome.');
+  }
+  syncFullscreenButton();
+};
+document.addEventListener('fullscreenchange', syncFullscreenButton);
 const G = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟' };
 const V = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
 const dN = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
