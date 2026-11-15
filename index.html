@@ -35,25 +35,30 @@ h1{font-size:clamp(18px,4vw,22px);margin:0}#topbar{display:flex;align-items:cent
 #status{font-size:15px;min-height:22px;color:var(--muted)}
 #status b{color:var(--text)}
 #board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));width:var(--bs);height:var(--bs);flex:0 0 auto;overflow:hidden;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.35);user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-/* Fullscreen: kunci lebar DAN tinggi ke nilai sama agar tidak pernah melebar 16:9 */
-#board:fullscreen,#board.pseudo-fullscreen{
+/* Mode layar penuh: sembunyikan kontrol, tampilkan papan persegi saja */
+.wrap:fullscreen,.wrap.pseudo-fullscreen{
+  position:fixed!important;inset:0!important;z-index:9999;
+  width:100vw!important;height:100vh!important;height:100dvh!important;
+  max-width:none!important;margin:0!important;padding:0!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  overflow:hidden!important;background:var(--bg)!important;
+}
+.wrap:fullscreen #topbar,.wrap:fullscreen #status,.wrap:fullscreen>.row,.wrap:fullscreen #ol,
+.wrap.pseudo-fullscreen #topbar,.wrap.pseudo-fullscreen #status,.wrap.pseudo-fullscreen>.row,.wrap.pseudo-fullscreen #ol{display:none!important}
+.wrap:fullscreen #board,.wrap.pseudo-fullscreen #board{
   --bs:var(--fs-board-size,min(100vw,100dvh));
   --cell:calc(var(--bs)/8);
-  position:fixed!important;
-  left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;
+  position:relative!important;inset:auto!important;
   width:var(--bs)!important;height:var(--bs)!important;
   min-width:var(--bs)!important;min-height:var(--bs)!important;
   max-width:var(--bs)!important;max-height:var(--bs)!important;
-  aspect-ratio:1/1!important;
-  margin:0!important;
-  transform:translate(-50%,-50%)!important;
+  flex:0 0 var(--bs)!important;aspect-ratio:1/1!important;
+  margin:0!important;transform:none!important;
   grid-template-columns:repeat(8,minmax(0,1fr))!important;
   grid-template-rows:repeat(8,minmax(0,1fr))!important;
-  border-radius:0;box-shadow:none;z-index:10000;
+  border-radius:0;box-shadow:none;
 }
-#board.fl:fullscreen,#board.fl.pseudo-fullscreen{transform:translate(-50%,-50%) rotate(180deg)!important}
-#board.fl{transform:rotate(180deg)}#board.fl .sq span{transform:rotate(180deg)}
-#board.fl:fullscreen,#board.fl.pseudo-fullscreen{transform:translate(-50%,-50%) rotate(180deg)}
+.wrap:fullscreen #board.fl,.wrap.pseudo-fullscreen #board.fl{transform:rotate(180deg)!important}
 .sq{display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;font-size:calc(var(--cell)*.82);line-height:1;font-family:"Segoe UI Symbol","Noto Sans Symbols 2","Apple Symbols","DejaVu Sans",serif}
 .sq span{display:block;position:relative;z-index:1;line-height:1;margin-top:-2%}.tp{font-size:1.06em}.tr{font-size:.98em}
 .lt{background:#ebecd0}
@@ -139,19 +144,13 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
 const $ = id => document.getElementById(id), board = $('board');
 const fsButton = $('fullscreen');
 function syncFullscreenButton() {
-  const active = document.fullscreenElement === board || board.classList.contains('pseudo-fullscreen');
+  const active = document.fullscreenElement === wrap || wrap.classList.contains('pseudo-fullscreen');
   if (active) {
     const vv = window.visualViewport;
     const w = vv ? vv.width : window.innerWidth;
     const h = vv ? vv.height : window.innerHeight;
     const size = Math.max(1, Math.floor(Math.min(w, h)));
     board.style.setProperty('--fs-board-size', size + 'px');
-    board.style.setProperty('position', 'fixed', 'important');
-    board.style.setProperty('left', '50%', 'important');
-    board.style.setProperty('top', '50%', 'important');
-    board.style.setProperty('right', 'auto', 'important');
-    board.style.setProperty('bottom', 'auto', 'important');
-    board.style.setProperty('margin', '0', 'important');
     board.style.setProperty('width', size + 'px', 'important');
     board.style.setProperty('height', size + 'px', 'important');
     board.style.setProperty('min-width', size + 'px', 'important');
@@ -160,9 +159,8 @@ function syncFullscreenButton() {
     board.style.setProperty('max-height', size + 'px', 'important');
     board.style.setProperty('grid-template-columns', 'repeat(8,minmax(0,1fr))', 'important');
     board.style.setProperty('grid-template-rows', 'repeat(8,minmax(0,1fr))', 'important');
-    board.style.setProperty('transform', (board.classList.contains('fl') ? 'translate(-50%,-50%) rotate(180deg)' : 'translate(-50%,-50%)'), 'important');
   } else {
-    ['--fs-board-size','position','left','top','right','bottom','margin','width','height','min-width','min-height','max-width','max-height','grid-template-columns','grid-template-rows','transform'].forEach(p => board.style.removeProperty(p));
+    ['--fs-board-size','width','height','min-width','min-height','max-width','max-height','grid-template-columns','grid-template-rows'].forEach(p => board.style.removeProperty(p));
   }
   fsButton.textContent = active ? '✕ Keluar Full Screen' : '⛶ Papan Full Screen';
 }
@@ -171,20 +169,20 @@ window.addEventListener('orientationchange', syncFullscreenButton);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', syncFullscreenButton);
 fsButton.onclick = async () => {
   try {
-    if (document.fullscreenElement === board) await document.exitFullscreen();
+    if (document.fullscreenElement === wrap) await document.exitFullscreen();
     else if (document.fullscreenElement) await document.exitFullscreen();
-    else if (board.classList.contains('pseudo-fullscreen')) board.classList.remove('pseudo-fullscreen');
-    else if (board.requestFullscreen) await board.requestFullscreen();
-    else board.classList.add('pseudo-fullscreen');
+    else if (wrap.classList.contains('pseudo-fullscreen')) wrap.classList.remove('pseudo-fullscreen');
+    else if (wrap.requestFullscreen) await wrap.requestFullscreen();
+    else wrap.classList.add('pseudo-fullscreen');
   } catch (err) {
-    board.classList.add('pseudo-fullscreen');
+    wrap.classList.add('pseudo-fullscreen');
   }
   syncFullscreenButton();
 };
 document.addEventListener('fullscreenchange', syncFullscreenButton);
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && board.classList.contains('pseudo-fullscreen')) {
-    board.classList.remove('pseudo-fullscreen');
+  if (e.key === 'Escape' && wrap.classList.contains('pseudo-fullscreen')) {
+    wrap.classList.remove('pseudo-fullscreen');
     syncFullscreenButton();
   }
 });
@@ -346,8 +344,7 @@ function render() {
     h += `<div class="${cl}" data-i="${i}">${lab(r, c)}${p ? `<span class="${isW(p) ? 'pw' : 'pb'} t${p.toLowerCase()}">${G[p.toUpperCase()]}\uFE0E</span>` : ''}</div>`;
   }
   board.innerHTML = h;
-  const keepPseudoFullscreen = board.classList.contains('pseudo-fullscreen');
-  board.className = (me === 'b' && (ai() || on()) ? 'fl ' : '') + 'theme-' + (themeSelect.value || 'classic') + (keepPseudoFullscreen ? ' pseudo-fullscreen' : '');
+  board.className = (me === 'b' && (ai() || on()) ? 'fl ' : '') + 'theme-' + (themeSelect.value || 'classic');
   const who = s.turn === 'w' ? 'Putih' : 'Hitam';
   $('status').innerHTML = !L.length
     ? (chk ? `<b>Skakmat!</b> ${s.turn === 'w' ? 'Hitam' : 'Putih'} menang 🎉` : '<b>Remis</b> (stalemat)')
