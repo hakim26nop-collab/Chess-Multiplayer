@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Catur Online</title>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+*{box-sizing:border-box}
+:root{--bg:#f4f1ea;--text:#1d2420;--muted:#6b756f;--card:#fff;--accent:#2f8f5b;--lt:#eeeed2;--dk:#769656;--sel:#f6f669;--lm:#cdd26a;--bs:min(92vw,68vh,600px);--cell:calc(var(--bs)/8)}
+@supports(height:1svh){:root{--bs:min(92vw,68svh,600px)}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141a17;--text:#e8efe9;--muted:#93a198;--card:#1e2723;--accent:#4cc38a;--lt:#b9bda6;--dk:#5d7a46;--sel:#cfcf52;--lm:#9da34f}}
+:root[data-theme="dark"]{--bg:#141a17;--text:#e8efe9;--muted:#93a198;--card:#1e2723;--accent:#4cc38a;--lt:#b9bda6;--dk:#5d7a46;--sel:#cfcf52;--lm:#9da34f}
+html{min-height:100%;margin:0}
+body{min-height:100svh;min-height:100dvh;margin:0;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;overflow-x:hidden}
+.wrap{width:min(100%,var(--bs));display:flex;flex-direction:column;gap:12px;margin:auto}
+h1{font-size:clamp(18px,4vw,22px);margin:0}#topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}#fullscreen{flex:0 0 auto;padding:10px 13px;font-size:14px}
+.wrap:fullscreen{width:100%;height:100%;max-width:none;--bs:min(92vw,68vh,720px);gap:10px;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));overflow:auto;background:var(--bg);color:var(--text);justify-content:center}
+.wrap:fullscreen #board{width:var(--bs);height:var(--bs)}
+.wrap.pseudo-fullscreen{position:fixed;inset:0;z-index:9999;width:100vw;height:100vh;height:100dvh;max-width:none;--bs:min(92vw,60vh,720px);padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));overflow:auto;justify-content:center;background:var(--bg)}
+@media (max-width:420px){
+  body{padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
+  .wrap{gap:9px}
+  .row{gap:6px}
+  button,select,input{min-height:42px;padding:9px;font-size:14px}
+  #fullscreen{font-size:13px;padding:9px 10px}
+}
+@media (max-height:760px) and (orientation:portrait){body{align-items:flex-start}.wrap{margin-top:auto;margin-bottom:auto}}
+@media (min-width:700px) and (min-height:700px){.wrap{gap:14px}#status{font-size:16px}}
+@supports(height:1svh){
+  .wrap:fullscreen{--bs:min(92vw,68svh,720px)}
+  .wrap.pseudo-fullscreen{--bs:min(92vw,60dvh,720px)}
+}
+@media (max-height:520px) and (orientation:landscape){:root{--bs:min(48vw,72svh,420px)}body{align-items:flex-start}.wrap{margin:auto}.wrap:fullscreen,.wrap.pseudo-fullscreen{--bs:min(52vw,76svh,520px);flex-direction:row;flex-wrap:wrap;align-content:center;align-items:center;justify-content:center;gap:8px 16px}.wrap:fullscreen #topbar,.wrap.pseudo-fullscreen #topbar{width:100%}.wrap:fullscreen #board,.wrap.pseudo-fullscreen #board{flex:0 0 var(--bs)}.wrap:fullscreen .row,.wrap.pseudo-fullscreen .row{flex:1 1 180px;max-width:320px}}
+#status{font-size:15px;min-height:22px;color:var(--muted)}
+#status b{color:var(--text)}
+#board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));width:var(--bs);height:var(--bs);flex:0 0 auto;overflow:hidden;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.35);user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+/* Fullscreen: kunci lebar DAN tinggi ke nilai sama agar tidak pernah melebar 16:9 */
+#board:fullscreen,#board.pseudo-fullscreen{
+  --bs:var(--fs-board-size,min(100vw,100dvh));
+  --cell:calc(var(--bs)/8);
+  position:fixed!important;
+  inset:0!important;
+  width:var(--bs)!important;
+  height:var(--bs)!important;
+  min-width:var(--bs)!important;min-height:var(--bs)!important;
+  max-width:var(--bs)!important;max-height:var(--bs)!important;
+  aspect-ratio:1/1!important;
+  margin:auto!important;
+  transform:none!important;
+  border-radius:0;box-shadow:none;z-index:10000;
+}
+#board.fl:fullscreen,#board.fl.pseudo-fullscreen{transform:rotate(180deg)!important}
+#board.fl{transform:rotate(180deg)}#board.fl .sq span{transform:rotate(180deg)}
+#board.fl:fullscreen,#board.fl.pseudo-fullscreen{transform:translate(-50%,-50%) rotate(180deg)}
+.sq{display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;font-size:calc(var(--cell)*.82);line-height:1;font-family:"Segoe UI Symbol","Noto Sans Symbols 2","Apple Symbols","DejaVu Sans",serif}
+.sq span{display:block;position:relative;z-index:1;line-height:1;margin-top:-2%}.tp{font-size:1.06em}.tr{font-size:.98em}
+.lt{background:#ebecd0}
+.dk{background:#779556}
+/* Tema papan catur */
+/* Kayu natural: warna hangat polos dengan gradasi sangat lembut, tanpa garis/pola optik */
+#board.theme-wood .lt{background:linear-gradient(180deg,#efd2a5 0%,#e8c28f 100%)}
+#board.theme-wood .dk{background:linear-gradient(180deg,#99613a 0%,#85502f 100%)}
+#board.theme-marble .lt{background:linear-gradient(135deg,#f8f8f5,#cfd5d8)}
+#board.theme-marble .dk{background:linear-gradient(135deg,#68747e,#303a46)}
+#board.theme-blue .lt{background:linear-gradient(135deg,#e4f2ff,#b9d8f4)}
+#board.theme-blue .dk{background:linear-gradient(135deg,#3979b9,#24517f)}
+#board.theme-purple .lt{background:linear-gradient(135deg,#f2e8ff,#d9c2ef)}
+#board.theme-purple .dk{background:linear-gradient(135deg,#8055a8,#563578)}
+#board.theme-slate .lt{background:linear-gradient(135deg,#e5e7eb,#c5cbd3)}
+#board.theme-slate .dk{background:linear-gradient(135deg,#596574,#35404d)}
+#board.theme-forest .lt{background:linear-gradient(135deg,#dcebd2,#b5d0a4)}
+#board.theme-forest .dk{background:linear-gradient(135deg,#47734b,#284d32)}
+#board.theme-wood .lt i{color:#754126}#board.theme-wood .dk i{color:#f4d5a9}
+#board.theme-marble .lt i,#board.theme-blue .lt i,#board.theme-purple .lt i,#board.theme-slate .lt i,#board.theme-forest .lt i{color:#344454}
+#board.theme-marble .dk i,#board.theme-blue .dk i,#board.theme-purple .dk i,#board.theme-slate .dk i,#board.theme-forest .dk i{color:#f5f5f5}
+.sq i{position:absolute;z-index:2;font-style:normal;font-weight:700;font-size:calc(var(--cell)*.2);line-height:1;pointer-events:none}
+.rk{top:3px;left:3px}.fk{bottom:2px;right:3px}.lt i{color:#779556}.dk i{color:#ebecd0}
+#board.fl .sq i{transform:rotate(180deg)}#board.fl .rk{top:auto;left:auto;bottom:3px;right:3px}#board.fl .fk{bottom:auto;right:auto;top:2px;left:3px}
+.lm{box-shadow:inset 0 0 0 100px rgba(255,255,0,.4)}.sel{box-shadow:inset 0 0 0 100px rgba(255,255,0,.5)}
+.ck::before{content:"";position:absolute;inset:0;background:radial-gradient(circle,rgba(255,40,40,.9) 20%,rgba(255,40,40,0) 72%)}
+.tg::after{content:"";position:absolute;width:32%;height:32%;border-radius:50%;background:rgba(0,0,0,.15)}
+.cap::after{content:"";position:absolute;inset:0;border-radius:50%;border:calc(var(--cell)*.09) solid rgba(0,0,0,.15)}
+.pw{color:#fff;-webkit-text-stroke:1.5px #262421;filter:drop-shadow(0 1.5px 0 rgba(0,0,0,.25))}
+.pb{color:#312e2b;-webkit-text-stroke:1px #151412;filter:drop-shadow(0 1.5px 0 rgba(0,0,0,.25))}
+.row{display:flex;gap:8px;flex-wrap:wrap;min-width:0}
+.hid{display:none!important}
+input{font:inherit;border:0;border-radius:12px;padding:11px;min-height:44px;flex:1 1 100px;min-width:0;max-width:100%;background:var(--card);color:var(--text);box-shadow:0 1px 6px rgba(0,0,0,.15);text-align:center;letter-spacing:2px;font-weight:600}
+#olm{font-size:14px;color:var(--muted);text-align:center;min-height:20px;margin-top:8px}
+button,select{font:inherit;border:0;border-radius:12px;padding:11px;min-height:44px;min-width:0;max-width:100%;font-weight:600;cursor:pointer;flex:1 1 120px;touch-action:manipulation}
+button{background:var(--accent);color:#fff}
+button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px rgba(0,0,0,.15)}
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <div id="topbar"><h1>♟ Catur</h1><button id="fullscreen" class="alt" type="button">⛶ Layar Penuh</button></div>
+  <div id="status"></div>
+  <div id="board"></div>
+  <div class="row">
+    <select id="boardTheme" aria-label="Tema papan catur">
+      <option value="classic">Papan: Klasik</option>
+      <option value="wood">Papan: Kayu</option>
+      <option value="marble">Papan: Marmer</option>
+      <option value="blue">Papan: Biru</option>
+      <option value="purple">Papan: Ungu</option>
+      <option value="slate">Papan: Abu-abu</option>
+      <option value="forest">Papan: Hutan</option>
+    </select>
+  </div>
+  <div class="row">
+    <select id="mode">
+      <option value="e">Komputer: Mudah</option>
+      <option value="m" selected>Komputer: Sedang</option>
+      <option value="h">Komputer: Sulit</option>
+      <option value="2">2 Pemain (satu layar)</option>
+      <option value="o">Online (teman jarak jauh)</option>
+    </select>
+    <select id="side">
+      <option value="w">Main: Putih</option>
+      <option value="b">Main: Hitam</option>
+    </select>
+  </div>
+  <div class="row">
+    <button id="new">Game Baru</button>
+    <button id="undo" class="alt">Batal Langkah</button>
+  </div>
+  <div id="ol" class="hid">
+    <div class="row">
+      <button id="mk">Buat Game</button>
+      <input id="code" placeholder="Kode" maxlength="8" autocapitalize="characters" autocomplete="off">
+      <button id="jn" class="alt">Gabung</button>
+    </div>
+    <div id="olm">Buat game lalu kirim kodenya ke teman, atau masukkan kode dari teman. Tanpa akun.</div>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id), board = $('board');
+const fsButton = $('fullscreen');
+function syncFullscreenButton() {
+  const active = document.fullscreenElement === board || board.classList.contains('pseudo-fullscreen');
+  if (active) {
+    const vv = window.visualViewport;
+    const w = vv ? vv.width : window.innerWidth;
+    const h = vv ? vv.height : window.innerHeight;
+    const size = Math.max(1, Math.floor(Math.min(w, h)));
+    board.style.setProperty('--fs-board-size', size + 'px');
+    board.style.setProperty('width', size + 'px', 'important');
+    board.style.setProperty('height', size + 'px', 'important');
+    board.style.setProperty('grid-template-rows', 'repeat(8,minmax(0,1fr))', 'important');
+  } else {
+    board.style.removeProperty('--fs-board-size');
+    board.style.removeProperty('width');
+    board.style.removeProperty('height');
+    board.style.removeProperty('grid-template-rows');
+  }
+  fsButton.textContent = active ? '✕ Keluar Full Screen' : '⛶ Papan Full Screen';
+}
+window.addEventListener('resize', syncFullscreenButton);
+window.addEventListener('orientationchange', syncFullscreenButton);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', syncFullscreenButton);
+fsButton.onclick = async () => {
+  try {
+    if (document.fullscreenElement === board) await document.exitFullscreen();
+    else if (document.fullscreenElement) await document.exitFullscreen();
+    else if (board.classList.contains('pseudo-fullscreen')) board.classList.remove('pseudo-fullscreen');
+    else if (board.requestFullscreen) await board.requestFullscreen();
+    else board.classList.add('pseudo-fullscreen');
+  } catch (err) {
+    board.classList.add('pseudo-fullscreen');
+  }
+  syncFullscreenButton();
+};
+document.addEventListener('fullscreenchange', syncFullscreenButton);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && board.classList.contains('pseudo-fullscreen')) {
+    board.classList.remove('pseudo-fullscreen');
+    syncFullscreenButton();
+  }
+});
+const themeSelect = $('boardTheme');
+try { themeSelect.value = localStorage.getItem('chessBoardTheme') || 'classic'; } catch(e) {}
+themeSelect.onchange = () => {
+  try { localStorage.setItem('chessBoardTheme', themeSelect.value); } catch(e) {}
+  render();
+};
+const G = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟' };
+const V = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
+const dN = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
+const dK = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+const RT = { 0: 'q', 4: 'kq', 7: 'k', 56: 'Q', 60: 'KQ', 63: 'K' };
+let s, hist, sel, last, busy, me = 'w', tm;
+const ai = () => 'emh'.includes($('mode').value);
+const on = () => $('mode').value === 'o';
+const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-';
+let mv = '', room = null, rc = '', g = 0, unsub = null, ready = false;
+const isW = p => p === p.toUpperCase();
+
+function attacked(b, sq, by) {
+  const r = sq >> 3, c = sq & 7, w = by === 'w';
+  const at = (rr, cc, set) => rr >= 0 && rr < 8 && cc >= 0 && cc < 8 && b[rr * 8 + cc] && set.includes(b[rr * 8 + cc]);
+  const pr = r + (w ? 1 : -1), P = w ? 'P' : 'p';
+  if (at(pr, c - 1, P) || at(pr, c + 1, P)) return true;
+  for (const [a, d] of dN) if (at(r + a, c + d, w ? 'N' : 'n')) return true;
+  for (const [a, d] of dK) if (at(r + a, c + d, w ? 'K' : 'k')) return true;
+  for (let i = 0; i < 8; i++) {
+    const [a, d] = dK[i], S = w ? (i > 3 ? 'BQ' : 'RQ') : (i > 3 ? 'bq' : 'rq');
+    let rr = r + a, cc = c + d;
+    while (rr >= 0 && rr < 8 && cc >= 0 && cc < 8) {
+      const p = b[rr * 8 + cc];
+      if (p) { if (S.includes(p)) return true; break; }
+      rr += a; cc += d;
+    }
+  }
+  return false;
+}
+const inChk = (b, t) => attacked(b, b.indexOf(t === 'w' ? 'K' : 'k'), t === 'w' ? 'b' : 'w');
+
+function gen(s) {
+  const b = s.b, w = s.turn === 'w', out = [];
+  const own = p => p && isW(p) === w, foe = p => p && isW(p) !== w;
+  for (let i = 0; i < 64; i++) {
+    const p = b[i]; if (!own(p)) continue;
+    const r = i >> 3, c = i & 7, k = p.toLowerCase();
+    if (k === 'p') {
+      const d = w ? -1 : 1, sr = w ? 6 : 1, pr = w ? 0 : 7;
+      const add = (to, ep) => out.push({ from: i, to, ep, promo: (to >> 3) === pr });
+      if (!b[i + d * 8]) { add(i + d * 8); if (r === sr && !b[i + d * 16]) add(i + d * 16); }
+      for (const dc of [-1, 1]) {
+        const cc = c + dc; if (cc < 0 || cc > 7) continue;
+        const to = i + d * 8 + dc;
+        if (foe(b[to])) add(to); else if (to === s.ep) add(to, true);
+      }
+    } else if (k === 'n' || k === 'k') {
+      for (const [a, d] of k === 'n' ? dN : dK) {
+        const rr = r + a, cc = c + d; if (rr < 0 || rr > 7 || cc < 0 || cc > 7) continue;
+        const to = rr * 8 + cc; if (!own(b[to])) out.push({ from: i, to });
+      }
+      const base = w ? 56 : 0, en = w ? 'b' : 'w';
+      if (k === 'k' && i === base + 4 && !attacked(b, i, en)) {
+        const R = s.r, rk = w ? 'R' : 'r';
+        if (R.includes(w ? 'K' : 'k') && !b[base + 5] && !b[base + 6] && b[base + 7] === rk && !attacked(b, base + 5, en)) out.push({ from: i, to: base + 6, castle: 'K' });
+        if (R.includes(w ? 'Q' : 'q') && !b[base + 1] && !b[base + 2] && !b[base + 3] && b[base] === rk && !attacked(b, base + 3, en)) out.push({ from: i, to: base + 2, castle: 'Q' });
+      }
+    } else {
+      const ds = k === 'b' ? dK.slice(4) : k === 'r' ? dK.slice(0, 4) : dK;
+      for (const [a, d] of ds) {
+        let rr = r + a, cc = c + d;
+        while (rr >= 0 && rr < 8 && cc >= 0 && cc < 8) {
+          const to = rr * 8 + cc;
+          if (!b[to]) out.push({ from: i, to });
+          else { if (foe(b[to])) out.push({ from: i, to }); break; }
+          rr += a; cc += d;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function apply(s, m) {
+  const b = s.b.slice(), p = b[m.from], w = s.turn === 'w'; let r = s.r, ep = -1;
+  b[m.to] = p; b[m.from] = '';
+  if (m.ep) b[m.to + (w ? 8 : -8)] = '';
+  if (m.promo) b[m.to] = w ? 'Q' : 'q';
+  if (m.castle) {
+    const base = w ? 56 : 0;
+    if (m.castle === 'K') { b[base + 5] = b[base + 7]; b[base + 7] = ''; }
+    else { b[base + 3] = b[base]; b[base] = ''; }
+  }
+  if (p.toLowerCase() === 'p' && Math.abs(m.to - m.from) === 16) ep = (m.to + m.from) / 2;
+  for (const q of [m.from, m.to]) if (RT[q]) for (const ch of RT[q]) r = r.replace(ch, '');
+  return { b, turn: w ? 'b' : 'w', r, ep };
+}
+const legal = s => gen(s).filter(m => !inChk(apply(s, m).b, s.turn));
+
+function evalS(s) {
+  let v = 0;
+  for (let i = 0; i < 64; i++) {
+    const p = s.b[i]; if (!p) continue;
+    const k = p.toLowerCase(), r = i >> 3, c = i & 7;
+    let x = V[k];
+    if (k === 'p' || k === 'n' || k === 'b') x += 10 - (Math.abs(r - 3.5) + Math.abs(c - 3.5)) * 2;
+    v += isW(p) ? x : -x;
+  }
+  return s.turn === 'w' ? v : -v;
+}
+function search(s, d, a, b) {
+  if (d === 0) return evalS(s);
+  const L = legal(s);
+  if (!L.length) return inChk(s.b, s.turn) ? -1e5 - d : 0;
+  L.sort((x, y) => (s.b[y.to] ? 1 : 0) - (s.b[x.to] ? 1 : 0));
+  for (const m of L) {
+    const v = -search(apply(s, m), d - 1, -b, -a);
+    if (v >= b) return b;
+    if (v > a) a = v;
+  }
+  return a;
+}
+function aiMove() {
+  const L = legal(s), depth = { e: 1, m: 2, h: 3 }[$('mode').value];
+  let best = null, bv = -Infinity;
+  for (const m of L) {
+    const v = -search(apply(s, m), depth - 1, -1e9, 1e9) + Math.random() * (depth === 1 ? 60 : 8);
+    if (v > bv) { bv = v; best = m; }
+  }
+  busy = false;
+  if (best) doMove(best);
+}
+
+function doMove(m) {
+  hist.push({ s, last });
+  s = apply(s, m); last = [m.from, m.to]; sel = -1; mv += A[m.from] + A[m.to]; if (on() && room) push();
+  render();
+  if (ai() && s.turn !== me && legal(s).length) { busy = true; tm = setTimeout(aiMove, 60); }
+}
+
+function lab(r, c) {
+  const f = me === 'b' && (ai() || on());
+  let o = '';
+  if (c === (f ? 7 : 0)) o += `<i class="rk">${8 - r}</i>`;
+  if (r === (f ? 0 : 7)) o += `<i class="fk">${'abcdefgh'[c]}</i>`;
+  return o;
+}
+function render() {
+  const L = legal(s), chk = inChk(s.b, s.turn), ks = chk ? s.b.indexOf(s.turn === 'w' ? 'K' : 'k') : -1;
+  const tg = new Set(L.filter(m => m.from === sel).map(m => m.to));
+  let h = '';
+  for (let i = 0; i < 64; i++) {
+    const p = s.b[i], r = i >> 3, c = i & 7;
+    let cl = 'sq ' + ((r + c) % 2 ? 'dk' : 'lt');
+    if (i === sel) cl += ' sel';
+    if (last && (i === last[0] || i === last[1])) cl += ' lm';
+    if (i === ks) cl += ' ck';
+    if (tg.has(i)) cl += p ? ' cap' : ' tg';
+    h += `<div class="${cl}" data-i="${i}">${lab(r, c)}${p ? `<span class="${isW(p) ? 'pw' : 'pb'} t${p.toLowerCase()}">${G[p.toUpperCase()]}\uFE0E</span>` : ''}</div>`;
+  }
+  board.innerHTML = h;
+  const keepPseudoFullscreen = board.classList.contains('pseudo-fullscreen');
+  board.className = (me === 'b' && (ai() || on()) ? 'fl ' : '') + 'theme-' + (themeSelect.value || 'classic') + (keepPseudoFullscreen ? ' pseudo-fullscreen' : '');
+  const who = s.turn === 'w' ? 'Putih' : 'Hitam';
+  $('status').innerHTML = !L.length
+    ? (chk ? `<b>Skakmat!</b> ${s.turn === 'w' ? 'Hitam' : 'Putih'} menang 🎉` : '<b>Remis</b> (stalemat)')
+    : `Giliran <b>${who}</b>${chk ? ' — <b>Skak!</b>' : ''}${busy ? ' (komputer berpikir...)' : ''}`;
+}
+
+board.onclick = e => {
+  const q = e.target.closest('.sq'); if (!q || busy) return;
+  const i = +q.dataset.i, L = legal(s);
+  if (!L.length || (ai() && s.turn !== me) || (on() && (!room || s.turn !== me))) return;
+  const m = L.find(m => m.from === sel && m.to === i);
+  if (m) return doMove(m);
+  const p = s.b[i];
+  sel = p && isW(p) === (s.turn === 'w') ? i : -1;
+  render();
+};
+
+function init() {
+  const back = 'rnbqkbnr'.split(''), front = 'RNBQKBNR'.split('');
+  s = { b: [...back, ...Array(8).fill('p'), ...Array(32).fill(''), ...Array(8).fill('P'), ...front], turn: 'w', r: 'KQkq', ep: -1 };
+  clearTimeout(tm); mv = ''; me = $('side').value; hist = []; sel = -1; last = null; busy = false;
+  if (ai() && me === 'b') { busy = true; tm = setTimeout(aiMove, 500); }
+  render();
+}
+$('new').onclick = newGame;
+$('mode').onchange = modeChange;
+$('side').onchange = init;
+$('undo').onclick = () => {
+  if (busy || !hist.length) return;
+  do { const h = hist.pop(); s = h.s; last = h.last; } while (ai() && s.turn !== me && hist.length);
+  sel = -1;
+  if (ai() && s.turn !== me && legal(s).length) { busy = true; tm = setTimeout(aiMove, 60); }
+  render();
+};
+/* ===== Online lewat PeerJS (WebRTC, tanpa akun) ===== */
+let peer = null;
+function setOl(t) { $('olm').textContent = t; }
+function push() { if (room && room.open) room.send({ g: g, m: mv }); }
+const newBoard = () => ({ b: [...'rnbqkbnr'.split(''), ...Array(8).fill('p'), ...Array(32).fill(''), ...Array(8).fill('P'), ...'RNBQKBNR'.split('')], turn: 'w', r: 'KQkq', ep: -1 });
+function rebuild(str) {
+  s = newBoard(); hist = []; last = null; mv = '';
+  for (let i = 0; i + 1 < str.length; i += 2) {
+    const f = A.indexOf(str[i]), t = A.indexOf(str[i + 1]);
+    const m = legal(s).find(x => x.from === f && x.to === t);
+    if (!m) break;
+    hist.push({ s, last }); s = apply(s, m); last = [f, t]; mv += str[i] + str[i + 1];
+  }
+  sel = -1; render();
+}
+function olStatus(t) { setOl('Kode: ' + rc + ' \u00b7 Kamu: ' + (me === 'w' ? 'Putih' : 'Hitam') + ' \u00b7 ' + t); }
+function recv(d) {
+  if (!d || typeof d.m !== 'string' || d.m.length > 2000) return;
+  const pg = +d.g || 0;
+  if (pg > g) { g = pg; rebuild(d.m); }
+  else if (pg === g && d.m.length > mv.length && d.m.startsWith(mv)) rebuild(d.m);
+}
+function bind(c) {
+  room = c;
+  const up = () => { olStatus('Lawan terhubung'); push(); render(); };
+  if (c.open) up(); else c.on('open', up);
+  c.on('data', recv);
+  c.on('close', () => { room = null; olStatus('Lawan terputus. Buat game baru untuk lanjut.'); });
+  c.on('error', () => olStatus('Koneksi bermasalah'));
+}
+function leaveRoom() {
+  try { if (room) room.close(); } catch (e) {}
+  try { if (peer) peer.destroy(); } catch (e) {}
+  room = null; peer = null;
+}
+function resetBoard() { s = newBoard(); hist = []; last = null; sel = -1; mv = ''; g = 0; }
+function host(tries) {
+  leaveRoom(); resetBoard(); me = 'w';
+  const al = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = '';
+  for (let i = 0; i < 6; i++) c += al[Math.floor(Math.random() * al.length)];
+  rc = c; render();
+  if (!window.Peer) return setOl('Library PeerJS gagal dimuat. Periksa koneksi internet.');
+  setOl('Membuat game...');
+  peer = new Peer('catur-' + c.toLowerCase());
+  peer.on('open', () => olStatus('Menunggu lawan...'));
+  peer.on('connection', conn => { if (room) { conn.close(); return; } bind(conn); });
+  peer.on('error', e => { if (e.type === 'unavailable-id' && tries < 5) host(tries + 1); else setOl('Gagal membuat game (' + e.type + '). Coba lagi.'); });
+}
+function join(code) {
+  leaveRoom(); resetBoard(); me = 'b'; rc = code; render();
+  if (!window.Peer) return setOl('Library PeerJS gagal dimuat. Periksa koneksi internet.');
+  setOl('Menghubungkan...');
+  peer = new Peer();
+  peer.on('open', () => {
+    const c = peer.connect('catur-' + code.toLowerCase(), { reliable: true });
+    bind(c);
+    setTimeout(() => { if (!c.open) olStatus('Belum tersambung. Cek kodenya atau minta teman membuat game dulu.'); }, 9000);
+  });
+  peer.on('error', e => setOl(e.type === 'peer-unavailable' ? 'Kode tidak ditemukan. Periksa lagi kodenya.' : 'Gagal terhubung (' + e.type + ').'));
+}
+function newGame() {
+  if (on() && room) { g++; resetBoard2(); render(); push(); }
+  else init();
+}
+function resetBoard2() { const k = g; resetBoard(); g = k; }
+function modeChange() {
+  leaveRoom();
+  const o = on();
+  $('ol').classList.toggle('hid', !o);
+  $('side').classList.toggle('hid', o);
+  $('undo').classList.toggle('hid', o);
+  init();
+}
+$('mk').onclick = () => host(0);
+$('jn').onclick = () => {
+  const c = $('code').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (c.length < 4) return setOl('Masukkan kode dari temanmu.');
+  join(c);
+};
+init();
+</script>
+</body>
+</html>
