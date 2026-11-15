@@ -88,6 +88,7 @@ h1{font-size:clamp(18px,4vw,22px);margin:0}#topbar{display:flex;align-items:cent
 #board.theme-marble .dk i,#board.theme-blue .dk i,#board.theme-purple .dk i,#board.theme-slate .dk i,#board.theme-forest .dk i{color:#f5f5f5}
 .sq i{position:absolute;z-index:2;font-style:normal;font-weight:700;font-size:calc(var(--cell)*.2);line-height:1;pointer-events:none}
 .rk{top:3px;left:3px}.fk{bottom:2px;right:3px}.lt i{color:#779556}.dk i{color:#ebecd0}
+#board.fl{transform:rotate(180deg)}
 #board.fl .sq i{transform:rotate(180deg)}#board.fl .rk{top:auto;left:auto;bottom:3px;right:3px}#board.fl .fk{bottom:auto;right:auto;top:2px;left:3px}
 .lm{box-shadow:inset 0 0 0 100px rgba(255,255,0,.4)}.sel{box-shadow:inset 0 0 0 100px rgba(255,255,0,.5)}
 .ck::before{content:"";position:absolute;inset:0;background:radial-gradient(circle,rgba(255,40,40,.9) 20%,rgba(255,40,40,0) 72%)}
@@ -333,8 +334,14 @@ function doMove(m) {
   if (ai() && s.turn !== me && legal(s).length) { busy = true; tm = setTimeout(aiMove, 60); }
 }
 
+function boardFlipped() {
+  if (on()) return me === 'b';
+  if (ai()) return me === 'b';
+  if ($('mode').value === '2') return s.turn === 'b';
+  return false;
+}
 function lab(r, c) {
-  const f = me === 'b' && (ai() || on());
+  const f = boardFlipped();
   let o = '';
   if (c === (f ? 7 : 0)) o += `<i class="rk">${8 - r}</i>`;
   if (r === (f ? 0 : 7)) o += `<i class="fk">${'abcdefgh'[c]}</i>`;
@@ -354,7 +361,7 @@ function render() {
     h += `<div class="${cl}" data-i="${i}">${lab(r, c)}${p ? `<span class="${isW(p) ? 'pw' : 'pb'} t${p.toLowerCase()}">${G[p.toUpperCase()]}\uFE0E</span>` : ''}</div>`;
   }
   board.innerHTML = h;
-  board.className = (me === 'b' && (ai() || on()) ? 'fl ' : '') + 'theme-' + (themeSelect.value || 'classic');
+  board.className = (boardFlipped() ? 'fl ' : '') + 'theme-' + (themeSelect.value || 'classic');
   const pairs = [];
   for (let n = 0; n + 1 < mv.length; n += 4) {
     const from = A.indexOf(mv[n]) , to = A.indexOf(mv[n + 1]);
