@@ -51,6 +51,15 @@ h1{font-size:clamp(18px,4vw,22px);margin:0}#topbar{display:flex;align-items:cent
 .wrap:fullscreen #moveHistory,.wrap.pseudo-fullscreen #moveHistory{display:none!important}
 #status{font-size:15px;min-height:22px;color:var(--muted)}
 #status b{color:var(--text)}
+
+#board{position:relative}
+#resultOverlay{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:18px;text-align:center;background:rgba(10,15,13,.66);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);animation:resultFade .35s ease-out}
+#resultOverlay .result-title{color:#fff;font-size:clamp(22px,6vw,42px);font-weight:900;line-height:1.12;letter-spacing:.04em;text-shadow:0 3px 12px rgba(0,0,0,.65);animation:resultPop .48s cubic-bezier(.2,.8,.2,1) both}
+#resultOverlay .result-sub{color:#f1f5f2;font-size:clamp(13px,3.2vw,18px);font-weight:700;text-shadow:0 2px 6px #000}
+@keyframes resultFade{from{opacity:0}to{opacity:1}}
+@keyframes resultPop{0%{opacity:0;transform:scale(.72) translateY(12px)}70%{transform:scale(1.06)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@media(prefers-reduced-motion:reduce){#resultOverlay,#resultOverlay .result-title{animation:none!important}}
+
 #board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));width:var(--bs);height:var(--bs);flex:0 0 auto;overflow:hidden;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.35);user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 /* Mode layar penuh: sembunyikan kontrol, tampilkan papan persegi saja */
 .wrap:fullscreen,.wrap.pseudo-fullscreen{
@@ -409,9 +418,38 @@ function render() {
   }
   $('moveCount').textContent = '(' + mv.length / 2 + ')';
   $('moveList').innerHTML = pairs.length ? pairs.map((p,i) => '<div class="move-pair"><span class="move-no">' + (i+1) + '.</span><span>' + p.white + '</span><span>' + p.black + '</span></div>').join('') : '<span>Belum ada langkah.</span>';
+  if (!L.length) {
+    const title = chk ? (s.turn === 'w' ? 'PUTIH KALAH' : 'HITAM KALAH') : 'REMIS';
+    const subtitle = chk ? (s.turn === 'w' ? 'Hitam menang — Skakmat!' : 'Putih menang — Skakmat!') : 'Tidak ada langkah legal';
+    h += `<div id="resultOverlay" role="status" aria-live="assertive"><div class="result-title">${title}</div><div class="result-sub">${subtitle}</div></div>`;
+  }
+  board.innerHTML = h;
+  board.className = (boardFlipped() ? 'fl ' : '') + 'theme-' + (themeSelect.value || 'classic') + ' gfx-' + (graphicsSelect.value || 'standard');
+  if (movingPieceRect && last && typeof Element.prototype.animate === 'function') {
+    const targetPiece = board.querySelector('.sq[data-i="' + last[1] + '"] span');
+    const targetSquare = board.querySelector('.sq[data-i="' + last[1] + '"]');
+    if (targetPiece && targetSquare) {
+      const targetRect = targetSquare.getBoundingClientRect();
+      const dx = movingPieceRect.left - targetRect.left;
+      const dy = movingPieceRect.top - targetRect.top;
+      targetPiece.animate(
+        [{ transform: 'translate(' + dx + 'px,' + dy + 'px)' }, { transform: 'translate(0,0)' }],
+        { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)' }
+      );
+    }
+  }
+  const pairs = [];
+  for (let n = 0; n + 1 < mv.length; n += 4) {
+    const from = A.indexOf(mv[n]) , to = A.indexOf(mv[n + 1]);
+    const f2 = A.indexOf(mv[n + 2]), t2 = A.indexOf(mv[n + 3]);
+    const sq = i => 'abcdefgh'[i & 7] + (8 - (i >> 3));
+    pairs.push({white: sq(from) + '–' + sq(to), black: n + 3 < mv.length ? sq(f2) + '–' + sq(t2) : ''});
+  }
+  $('moveCount').textContent = '(' + mv.length / 2 + ')';
+  $('moveList').innerHTML = pairs.length ? pairs.map((p,i) => '<div class="move-pair"><span class="move-no">' + (i+1) + '.</span><span>' + p.white + '</span><span>' + p.black + '</span></div>').join('') : '<span>Belum ada langkah.</span>';
   const who = s.turn === 'w' ? 'Putih' : 'Hitam';
   $('status').innerHTML = !L.length
-    ? (chk ? `<b>Skakmat!</b> ${s.turn === 'w' ? 'Hitam' : 'Putih'} menang 🎉` : '<b>Remis</b> (stalemat)')
+    ? (chk ? `<b>Skakmat!</b> ${s.turn === 'w' ? 'Hitam' : 'Putih'} menang 🎉` : '<b>Remis</b> (stalemate)')
     : `Giliran <b>${who}</b>${chk ? ' — <b>Skak!</b>' : ''}${busy ? ' (komputer berpikir...)' : ''}`;
 }
 
