@@ -363,7 +363,7 @@ function aiMove() {
 function doMove(m) {
   const pieceStartRect = board.querySelector('.sq[data-i="' + m.from + '"] span')?.getBoundingClientRect() || null;
   hist.push({ s, last, mv });
-  s = apply(s, m); last = [m.from, m.to]; sel = -1; mv += A[m.from] + A[m.to]; if (on() && room) push();
+  s = apply(s, m); last = [m.from, m.to]; sel = -1; mv += A[m.from] + A[m.to]; if (on() && room) push(m);
   render(pieceStartRect);
   if (ai() && s.turn !== me && legal(s).length) { busy = true; tm = setTimeout(aiMove, 60); }
 }
@@ -463,7 +463,7 @@ $('undo').onclick = () => {
 /* ===== Online lewat PeerJS (WebRTC, tanpa akun) ===== */
 let peer = null;
 function setOl(t) { $('olm').textContent = t; }
-function push() { if (room && room.open) room.send({ g: g, m: mv }); }
+function push(m) { if (!room || !room.open) return; if (m) room.send({ g: g, n: mv.length / 2, f: A[m.from] + A[m.to] }); else room.send({ g: g, m: mv }); }
 const newBoard = () => ({ b: [...'rnbqkbnr'.split(''), ...Array(8).fill('p'), ...Array(32).fill(''), ...Array(8).fill('P'), ...'RNBQKBNR'.split('')], turn: 'w', r: 'KQkq', ep: -1 });
 function rebuild(str) {
   s = newBoard(); hist = []; last = null; mv = '';
@@ -477,10 +477,24 @@ function rebuild(str) {
 }
 function olStatus(t) { setOl('Kode: ' + rc + ' \u00b7 Kamu: ' + (me === 'w' ? 'Putih' : 'Hitam') + ' \u00b7 ' + t); }
 function recv(d) {
-  if (!d || typeof d.m !== 'string' || d.m.length > 2000) return;
+  if (!d || typeof d !== 'object') return;
+  if (d.req) { if (room && room.open) room.send({ g: g, m: mv }); return; }
   const pg = +d.g || 0;
-  if (pg > g) { g = pg; rebuild(d.m); }
-  else if (pg === g && d.m.length > mv.length && d.m.startsWith(mv)) rebuild(d.m);
+  if (typeof d.m === 'string' && d.m.length <= 2000) {
+    if (pg > g) { g = pg; rebuild(d.m); }
+    else if (pg === g && d.m.length > mv.length && d.m.startsWith(mv)) rebuild(d.m);
+    return;
+  }
+  if (typeof d.f !== 'string' || d.f.length !== 2 || !Number.isInteger(d.n)) return;
+  if (pg !== g || d.n !== mv.length / 2 + 1) {
+    if (room && room.open) room.send({ g: g, req: true });
+    return;
+  }
+  const from = A.indexOf(d.f[0]), to = A.indexOf(d.f[1]);
+  const m = legal(s).find(x => x.from === from && x.to === to);
+  if (!m) { if (room && room.open) room.send({ g: g, req: true }); return; }
+  hist.push({ s, last, mv });
+  s = apply(s, m); last = [from, to]; mv += d.f; sel = -1; render();
 }
 function bind(c) {
   room = c;
