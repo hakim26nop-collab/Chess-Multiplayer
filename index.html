@@ -32,6 +32,19 @@ h1{font-size:clamp(18px,4vw,22px);margin:0}#topbar{display:flex;align-items:cent
   .wrap.pseudo-fullscreen{--bs:min(92vw,60dvh,720px)}
 }
 @media (max-height:520px) and (orientation:landscape){:root{--bs:min(48vw,72svh,420px)}body{align-items:flex-start}.wrap{margin:auto}.wrap:fullscreen,.wrap.pseudo-fullscreen{--bs:min(52vw,76svh,520px);flex-direction:row;flex-wrap:wrap;align-content:center;align-items:center;justify-content:center;gap:8px 16px}.wrap:fullscreen #topbar,.wrap.pseudo-fullscreen #topbar{width:100%}.wrap:fullscreen #board,.wrap.pseudo-fullscreen #board{flex:0 0 var(--bs)}.wrap:fullscreen .row,.wrap.pseudo-fullscreen .row{flex:1 1 180px;max-width:320px}}
+.control-heading{width:100%;max-width:var(--bs);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:2px 0 -6px;padding:0 2px}
+#gameSetup,#primaryActions,#matchTools{width:100%;max-width:var(--bs);display:grid;gap:8px}
+#gameSetup{grid-template-columns:repeat(2,minmax(0,1fr))}
+#primaryActions{grid-template-columns:repeat(2,minmax(0,1fr))}
+#primaryActions button{width:100%;min-width:0}
+#primaryActions #new{font-weight:800;box-shadow:0 2px 8px rgba(30,110,65,.22)}
+#matchTools{grid-template-columns:repeat(3,minmax(0,1fr))}
+#matchTools button{width:100%;min-width:0;padding:10px 6px;font-size:13px;flex:none}
+#matchTools #exportPgn{grid-column:1/-1}
+#ol{width:100%;max-width:var(--bs)}
+#ol .row{display:grid;grid-template-columns:1fr minmax(70px,1fr) 1fr}
+@media(min-width:700px){#matchTools{grid-template-columns:repeat(4,minmax(0,1fr))}#matchTools #exportPgn{grid-column:auto}}
+@media(max-width:420px){#gameSetup,#primaryActions,#matchTools{gap:6px}#matchTools button{font-size:12px;padding:9px 4px}}
 #moveHistory{width:100%;max-width:var(--bs);background:var(--card);color:var(--text);border-radius:12px;padding:9px 12px;box-shadow:0 1px 6px rgba(0,0,0,.12);font-size:13px}
 #moveHistory summary,#settings summary{cursor:pointer;font-weight:700;user-select:none}
 #settings{width:100%;max-width:var(--bs);background:var(--card);color:var(--text);border-radius:12px;padding:11px 13px;box-shadow:0 1px 6px rgba(0,0,0,.12);font-size:14px}
@@ -141,11 +154,34 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
   <div id="board"></div>
   <div id="captured" aria-label="Captured pieces"><div class="side" id="whiteCaptured"><span class="cap-label">WHITE TAKES</span></div><div class="side" id="blackCaptured"><span class="cap-label">BLACK TAKES</span></div></div>
   <div id="stats">Local record: 0 wins · 0 losses · 0 draws</div>
+  <div class="control-heading">Game setup</div>
+  <div class="row" id="gameSetup">
+    <select id="mode">
+      <option value="e">Computer: Easy</option>
+      <option value="m" selected>Computer: Medium</option>
+      <option value="h">Computer: Hard</option>
+      <option value="2">Local 2-player</option>
+      <option value="o">Online (remote friend)</option>
+    </select>
+    <select id="side">
+      <option value="w">Play as: White</option>
+      <option value="b">Play as: Black</option>
+    </select>
+  </div>
+  <div class="row" id="primaryActions">
+    <button id="new">New Game</button>
+    <button id="undo" class="alt">Undo Move</button>
+  </div>
+  <div class="control-heading">Game controls</div>
   <div class="row" id="matchTools"><button id="resign" class="alt" type="button">Resign</button><button id="drawOffer" class="alt" type="button">Offer draw</button><button id="claimDraw" class="alt" type="button">Claim draw</button><button id="exportPgn" class="alt" type="button">Export PGN</button></div>
-  <details id="moveHistory">
-    <summary>Move History <span id="moveCount">(0)</span></summary>
-    <div id="moveList"><span>No moves yet.</span></div>
-  </details>
+  <div id="ol" class="hid">
+    <div class="row">
+      <button id="mk">Create Game</button>
+      <input id="code" placeholder="Room code" maxlength="8" autocapitalize="characters" autocomplete="off">
+      <button id="jn" class="alt">Join</button>
+    </div>
+    <div id="olm">Create a game and share the room code, or enter a friend’s code. No account required.</div>
+  </div>
   <details id="settings">
     <summary>⚙️ Settings</summary>
     <div class="setting-row"><label for="appTheme">Tema tampilan</label><select id="appTheme" aria-label="Tema tampilan"><option value="system">Ikuti perangkat</option><option value="light">Terang</option><option value="dark">Gelap</option></select></div>
@@ -162,31 +198,10 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
     <div class="setting-row"><label for="soundEnabled">Move sounds</label><input id="soundEnabled" type="checkbox" checked></div>
     <div class="setting-row"><label for="graphics">Graphics quality</label><select id="graphics"><option value="standard">Standard</option><option value="low">Low</option><option value="high">High</option></select></div>
   </details>
-  <div class="row">
-    <select id="mode">
-      <option value="e">Computer: Easy</option>
-      <option value="m" selected>Computer: Medium</option>
-      <option value="h">Computer: Hard</option>
-      <option value="2">Local 2-player</option>
-      <option value="o">Online (remote friend)</option>
-    </select>
-    <select id="side">
-      <option value="w">Play as: White</option>
-      <option value="b">Play as: Black</option>
-    </select>
-  </div>
-  <div class="row">
-    <button id="new">New Game</button>
-    <button id="undo" class="alt">Undo Move</button>
-  </div>
-  <div id="ol" class="hid">
-    <div class="row">
-      <button id="mk">Create Game</button>
-      <input id="code" placeholder="Room code" maxlength="8" autocapitalize="characters" autocomplete="off">
-      <button id="jn" class="alt">Join</button>
-    </div>
-    <div id="olm">Create a game and share the room code, or enter a friend’s code. No account required.</div>
-  </div>
+  <details id="moveHistory">
+    <summary>Move History <span id="moveCount">(0)</span></summary>
+    <div id="moveList"><span>No moves yet.</span></div>
+  </details>
 </div>
 <script>
 const $ = id => document.getElementById(id), board = $('board');
