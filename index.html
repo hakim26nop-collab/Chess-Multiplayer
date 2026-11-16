@@ -141,7 +141,7 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
   <div id="board"></div>
   <div id="captured" aria-label="Captured pieces"><div class="side" id="whiteCaptured"><span class="cap-label">WHITE TAKES</span></div><div class="side" id="blackCaptured"><span class="cap-label">BLACK TAKES</span></div></div>
   <div id="stats">Local record: 0 wins · 0 losses · 0 draws</div>
-  <div class="row" id="matchTools"><button id="resign" class="alt" type="button">Resign</button><button id="drawOffer" class="alt" type="button">Offer draw</button><button id="exportPgn" class="alt" type="button">Export PGN</button></div>
+  <div class="row" id="matchTools"><button id="resign" class="alt" type="button">Resign</button><button id="drawOffer" class="alt" type="button">Offer draw</button><button id="claimDraw" class="alt" type="button">Claim draw</button><button id="exportPgn" class="alt" type="button">Export PGN</button></div>
   <details id="moveHistory">
     <summary>Move History <span id="moveCount">(0)</span></summary>
     <div id="moveList"><span>No moves yet.</span></div>
@@ -318,7 +318,7 @@ function gen(s) {
 function positionKey(st) { return st.b.join('')+'| '+st.turn+'|'+st.r+'|'+st.ep; }
 function repetitionCount(st) { const key=positionKey(st); let n=1; for(const h of (hist||[])) if(h.s&&positionKey(h.s)===key)n++; return n; }
 function insufficientMaterial(st) { const a=st.b.map(p=>p?p.toLowerCase():'').filter(p=>p&&p!=='k'); if(!a.length)return true; if(a.some(p=>['p','r','q'].includes(p)))return false; if(a.length===1)return true; if(a.every(p=>p==='b')){const x=st.b.map((p,i)=>p&&p.toLowerCase()==='b'?((i>>3)+(i&7))%2:-1).filter(v=>v>=0);return x.every(v=>v===x[0]);} return false; }
-function drawReason(st) { if(repetitionCount(st)>=3)return 'Draw by threefold repetition'; if((st.halfmove||0)>=100)return 'Draw by the fifty-move rule'; if(insufficientMaterial(st))return 'Draw by insufficient material'; return ''; }
+function drawReason(st) { if(repetitionCount(st)>=5)return 'Draw by fivefold repetition'; if((st.halfmove||0)>=150)return 'Draw by the seventy-five-move rule'; if(insufficientMaterial(st))return 'Draw by insufficient material'; return ''; }
 function apply(s, m) {
   const b = s.b.slice(), p = b[m.from], w = s.turn === 'w'; let r = s.r, ep = -1; const captured=b[m.to]||(m.ep?(w?'p':'P'):'');
   b[m.to] = p; b[m.from] = '';
@@ -493,7 +493,7 @@ board.onclick = e => {
   const i = +q.dataset.i, L = legal(s);
   if (!L.length || gameOver || drawReason(s) || (ai() && s.turn !== me) || (on() && (!room || s.turn !== me))) return;
   const m = L.find(m => m.from === sel && m.to === i);
-  if (m) { if(m.promo){const v=(prompt('Promote to Q, R, B, or N?','Q')||'Q').toLowerCase();m.promotion=['q','r','b','n'].includes(v)?v:'q';} return doMove(m); }
+  if (m) { if(m.promo&&!on()){const v=(prompt('Promote to Q, R, B, or N?','Q')||'Q').toLowerCase();m.promotion=['q','r','b','n'].includes(v)?v:'q';} return doMove(m); }
   const p = s.b[i];
   sel = p && isW(p) === (s.turn === 'w') ? i : -1;
   render();
@@ -620,6 +620,7 @@ $('jn').onclick = () => {
 function finishRemoteResult(message,decisive,winner){if(gameOver)return;gameOver=true;resultRecorded=true;let v={w:0,l:0,d:0};try{v=JSON.parse(localStorage.getItem('chessLocalStats')||'{"w":0,"l":0,"d":0}')}catch(e){}if(!decisive)v.d=(v.d||0)+1;else if(winner===me)v.w=(v.w||0)+1;else v.l=(v.l||0)+1;try{localStorage.setItem('chessLocalStats',JSON.stringify(v))}catch(e){}updateStats();board.insertAdjacentHTML('beforeend','<div id="resultOverlay" role="status"><div class="result-title">'+message+'</div><div class="result-sub">Game finished</div></div>');$('status').textContent=message;}
 $('resign').onclick=()=>{if(gameOver||!mv.length)return;if(!confirm('Resign this game?'))return;if(on()&&room&&room.open)room.send({type:'resign',side:me});finishRemoteResult((me==='w'?'White':'Black')+' resigns',true,me==='w'?'b':'w');};
 $('drawOffer').onclick=()=>{if(gameOver||!mv.length)return;if(on()){if(room&&room.open){room.send({type:'draw-offer',side:me});setOl('Draw offer sent.');}}else if(confirm('Agree to a draw?'))finishRemoteResult('DRAW',false,null);};
+$('claimDraw').onclick=()=>{if(gameOver)return;if(repetitionCount(s)>=3||(s.halfmove||0)>=100){if(on()&&room&&room.open)room.send({type:'draw-accept'});finishRemoteResult('DRAW',false,null);}else alert('A draw cannot be claimed yet. Threefold repetition or 50 moves without a pawn move or capture is required.');};
 $('exportPgn').onclick=()=>{const sq=i=>'abcdefgh'[i&7]+(8-(i>>3));const a=[];for(let i=0;i+1<mv.length;i+=2)a.push(sq(A.indexOf(mv[i]))+sq(A.indexOf(mv[i+1])));const out=[];for(let i=0;i<a.length;i+=2)out.push((Math.floor(i/2)+1)+'. '+a[i]+(a[i+1]?' '+a[i+1]:''));const blob=new Blob(['[Event "Chess Multiplayer"]\n[Date "'+new Date().toISOString().slice(0,10)+'"]\n[Result "*"]\n\n'+out.join(' ')],{type:'application/x-chess-pgn'});const url=URL.createObjectURL(blob),el=document.createElement('a');el.href=url;el.download='chess-game.pgn';el.click();URL.revokeObjectURL(url);};
 init();
 </script>
