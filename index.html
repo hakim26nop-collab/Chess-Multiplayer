@@ -509,7 +509,7 @@ function init() {
   resultRecorded = false; gameOver=false;
   const back = 'rnbqkbnr'.split(''), front = 'RNBQKBNR'.split('');
   s = { b: [...back, ...Array(8).fill('p'), ...Array(32).fill(''), ...Array(8).fill('P'), ...front], turn: 'w', r: 'KQkq', ep: -1 };
-  clearTimeout(tm); mv = ''; me = $('side').value; hist = []; sel = -1; last = null; busy = false;
+  clearTimeout(tm); mv = ''; sanMoves=[]; promos=[]; me = $('side').value; hist = []; sel = -1; last = null; busy = false;
   if (ai() && me === 'b') { busy = true; tm = setTimeout(aiMove, 500); }
   render();
 }
@@ -533,13 +533,13 @@ const newBoard = () => ({ b: [...'rnbqkbnr'.split(''), ...Array(8).fill('p'), ..
 function rebuild(str,plist=[]){s=newBoard();hist=[];last=null;mv='';sanMoves=[];promos=[];for(let i=0;i+1<str.length;i+=2){const f=A.indexOf(str[i]),t=A.indexOf(str[i+1]),m=legal(s).find(x=>x.from===f&&x.to===t);if(!m)break;m.promotion=plist[i/2]||'';const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice()});s=apply(s,m);last=[f,t];mv+=str[i]+str[i+1];sanMoves.push(san);promos.push(m.promotion||'');}sel=-1;gameOver=false;resultRecorded=false;render();}
 function olStatus(t) { setOl('Room: ' + rc + ' \u00b7 You: ' + (me === 'w' ? 'White' : 'Black') + ' \u00b7 ' + t); }
 function recv(d) {
-  if (!d || typeof d !== 'object') return;
+  if (!d || typeof d !== 'object' || gameOver) return;
   if(d.type==='resign'){finishRemoteResult((d.side==='w'?'White':'Black')+' resigns',true,d.side==='w'?'b':'w');return;}
   if(d.type==='draw-offer'){if(confirm('Your opponent offers a draw. Accept?')){if(room&&room.open)room.send({type:'draw-accept'});finishRemoteResult('DRAW',false,null);}else if(room&&room.open)room.send({type:'draw-decline'});return;}
   if(d.type==='draw-accept'){finishRemoteResult('DRAW',false,null);return;}
   if(d.type==='draw-claim'){if(repetitionCount(s)>=3||(s.halfmove||0)>=100)finishRemoteResult('DRAW',false,null);else setOl('Opponent made an invalid draw claim.');return;}
   if(d.type==='draw-decline'){setOl('Opponent declined the draw offer.');return;}
-  if (d.req) { if (room && room.open) room.send({ g: g, m: mv }); return; }
+  if (d.req) { if (room && room.open) room.send({ g:g, m:mv, p:promos.slice() }); return; }
   const pg = +d.g || 0;
   if (typeof d.m === 'string' && d.m.length <= 2000) {
     if (pg > g) { g = pg; rebuild(d.m,Array.isArray(d.p)?d.p:[]); }
@@ -621,7 +621,7 @@ function finishRemoteResult(message,decisive,winner){if(gameOver)return;gameOver
 $('resign').onclick=()=>{if(gameOver||!mv.length)return;if(!confirm('Resign this game?'))return;if(on()&&room&&room.open)room.send({type:'resign',side:me});finishRemoteResult((me==='w'?'White':'Black')+' resigns',true,me==='w'?'b':'w');};
 $('drawOffer').onclick=()=>{if(gameOver||!mv.length)return;if(on()){if(room&&room.open){room.send({type:'draw-offer',side:me});setOl('Draw offer sent.');}}else {const offering=s.turn==='w'?'Black':'White',accepting=s.turn==='w'?'White':'Black';if(confirm(offering+' offers a draw. '+accepting+', accept the draw?'))finishRemoteResult('DRAW',false,null);}};
 $('claimDraw').onclick=()=>{if(gameOver)return;if(repetitionCount(s)>=3||(s.halfmove||0)>=100){if(on()&&room&&room.open)room.send({type:'draw-claim'});finishRemoteResult('DRAW',false,null);}else alert('A draw cannot be claimed yet. Threefold repetition or 50 moves without a pawn move or capture is required.');};
-$('exportPgn').onclick=()=>{const sq=i=>'abcdefgh'[i&7]+(8-(i>>3));const a=[];for(let i=0;i+1<mv.length;i+=2)a.push(sq(A.indexOf(mv[i]))+sq(A.indexOf(mv[i+1])));const out=[];for(let i=0;i<a.length;i+=2)out.push((Math.floor(i/2)+1)+'. '+a[i]+(a[i+1]?' '+a[i+1]:''));const result=gameOver?(drawReason(s)||(!legal(s).length?'1/2-1/2':'*')):'*';const finalResult=result==='*'?'*':result==='1/2-1/2'?'1/2-1/2':(s.turn==='w'?'0-1':'1-0');const tags=['[Event "Chess Multiplayer"]','[Site "Chess Multiplayer"]','[Date "'+new Date().toISOString().slice(0,10).replace(/-/g,'.')+'"]','[Round "-"]','[White "White"]','[Black "Black"]','[Result "'+finalResult+'"]'];const body=sanMoves.map((m,i)=>(i%2===0?(Math.floor(i/2)+1)+'. ':'')+m).join(' ');const blob=new Blob([tags.join('\n')+'\n\n'+body+' '+finalResult],{type:'application/x-chess-pgn'});const url=URL.createObjectURL(blob),el=document.createElement('a');el.href=url;el.download='chess-game.pgn';el.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+$('exportPgn').onclick=()=>{const sq=i=>'abcdefgh'[i&7]+(8-(i>>3));const a=[];for(let i=0;i+1<mv.length;i+=2)a.push(sq(A.indexOf(mv[i]))+sq(A.indexOf(mv[i+1])));const out=[];for(let i=0;i<a.length;i+=2)out.push((Math.floor(i/2)+1)+'. '+a[i]+(a[i+1]?' '+a[i+1]:''));const terminalDraw=!!drawReason(s)||(!legal(s).length&&!inChk(s.b,s.turn));const terminalMate=gameOver&&!terminalDraw&&!legal(s).length&&inChk(s.b,s.turn);const finalResult=!gameOver?'*':terminalDraw?'1/2-1/2':terminalMate?(s.turn==='w'?'0-1':'1-0'):(resultRecorded&&s.turn!==me?(me==='w'?'1-0':'0-1'):(me==='w'?'0-1':'1-0'));const tags=['[Event "Chess Multiplayer"]','[Site "Chess Multiplayer"]','[Date "'+new Date().toISOString().slice(0,10).replace(/-/g,'.')+'"]','[Round "-"]','[White "White"]','[Black "Black"]','[Result "'+finalResult+'"]'];const body=sanMoves.map((m,i)=>(i%2===0?(Math.floor(i/2)+1)+'. ':'')+m).join(' ');const blob=new Blob([tags.join('\n')+'\n\n'+body+' '+finalResult],{type:'application/x-chess-pgn'});const url=URL.createObjectURL(blob),el=document.createElement('a');el.href=url;el.download='chess-game.pgn';el.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 init();
 </script>
 </body>
