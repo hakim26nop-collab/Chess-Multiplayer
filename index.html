@@ -236,7 +236,7 @@ themeSelect.onchange = () => {
   try { localStorage.setItem('chessBoardTheme', themeSelect.value); } catch(e) {}
   render();
 };
-const G = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟' };
+const G = { K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙', k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
 const V = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
 const dN = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
 const dK = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
@@ -392,7 +392,7 @@ function render(pieceStartRect = null) {
     if (last && (i === last[0] || i === last[1])) cl += ' lm';
     if (i === ks) cl += ' ck';
     if (tg.has(i)) cl += p ? ' cap' : ' tg';
-    h += `<div class="${cl}" data-i="${i}">${lab(r, c)}${p ? `<span class="${isW(p) ? 'pw' : 'pb'} t${p.toLowerCase()}">${G[p.toUpperCase()] }&#xFE0E;</span>` : ''}</div>`;
+    h += `<div class="${cl}" data-i="${i}">${lab(r, c)}${p ? `<span class="${isW(p) ? 'pw' : 'pb'} t${p.toLowerCase()}">${G[p]}</span>` : ''}</div>`;
   }
   const pairs = [];
   for (let n = 0; n + 1 < mv.length; n += 4) {
