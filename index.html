@@ -320,7 +320,7 @@ function toSAN(st,m){
  const p=st.b[m.from],k=p.toLowerCase(),capture=!!st.b[m.to]||!!m.ep;
  const file='abcdefgh'[m.from&7],rank=8-(m.from>>3),dest='abcdefgh'[m.to&7]+(8-(m.to>>3));let out='';
  if(m.castle)out=m.castle==='K'?'O-O':'O-O-O';
- else{if(k!=='p'){out=p.toUpperCase();const other=legal(st).filter(x=>x.from!==m.from&&x.to===m.to&&st.b[x.from]&&st.b[x.from].toLowerCase()===k);if(other.length){if(!other.some(x=>(x.from&7)!==(m.from&7)))out+=file;else if(!other.some(x=>(x.from>>3)!==(m.from>>3)))out+=rank;else out+=file+rank;}}else if(capture)out=file;if(capture)out+='x';out+=dest;if(m.promo)out+='='+(m.promotion||'q').toUpperCase();}
+ else{if(k!=='p'){out=p.toUpperCase();const other=legal(st).filter(x=>x.from!==m.from&&x.to===m.to&&st.b[x.from]&&st.b[x.from].toLowerCase()===k);if(other.length){if(!other.some(x=>(x.from&7)===(m.from&7)))out+=file;else if(!other.some(x=>(x.from>>3)===(m.from>>3)))out+=rank;else out+=file+rank;}}else if(capture)out=file;if(capture)out+='x';out+=dest;if(m.promo)out+='='+(m.promotion||'q').toUpperCase();}
  const next=apply(st,m),moves=legal(next);if(inChk(next.b,next.turn))out+=moves.length?'+':'#';return out;
 }
 function repetitionCount(st) { const key=positionKey(st); let n=1; for(const h of (hist||[])) if(h.s&&positionKey(h.s)===key)n++; return n; }
