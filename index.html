@@ -366,6 +366,7 @@ function search(s, d, a, b) {
   return a;
 }
 function aiMove() {
+  if(gameOver){busy=false;return;}
   const L = legal(s), depth = { e: 1, m: 2, h: 3 }[$('mode').value];
   let best = null, bv = -Infinity;
   for (const m of L) {
@@ -420,6 +421,7 @@ function recordResult(check) {
   updateStats();
 }
 function doMove(m) {
+  if(gameOver)return;
   const wasCapture = !!s.b[m.to] || !!m.ep;
   const pieceStartRect = board.querySelector('.sq[data-i="' + m.from + '"] span')?.getBoundingClientRect() || null;
   const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice()});s=apply(s,m);last=[m.from,m.to];sel=-1;mv+=A[m.from]+A[m.to];sanMoves.push(san);promos.push(m.promotion||'');if(on()&&room)push(m);
@@ -618,7 +620,7 @@ $('jn').onclick = () => {
   if (c.length < 4) return setOl('Enter your friend’s room code.');
   join(c);
 };
-function finishRemoteResult(message,decisive,winner){if(gameOver)return;gameOver=true;resultRecorded=true;pgnResult=decisive?(winner==='w'?'1-0':'0-1'):'1/2-1/2';let v={w:0,l:0,d:0};try{v=JSON.parse(localStorage.getItem('chessLocalStats')||'{"w":0,"l":0,"d":0}')}catch(e){}if(!decisive)v.d=(v.d||0)+1;else if(winner===me)v.w=(v.w||0)+1;else v.l=(v.l||0)+1;try{localStorage.setItem('chessLocalStats',JSON.stringify(v))}catch(e){}updateStats();board.insertAdjacentHTML('beforeend','<div id="resultOverlay" role="status"><div class="result-title">'+message+'</div><div class="result-sub">Game finished</div></div>');$('status').textContent=message;}
+function finishRemoteResult(message,decisive,winner){if(gameOver)return;clearTimeout(tm);busy=false;gameOver=true;resultRecorded=true;pgnResult=decisive?(winner==='w'?'1-0':'0-1'):'1/2-1/2';let v={w:0,l:0,d:0};try{v=JSON.parse(localStorage.getItem('chessLocalStats')||'{"w":0,"l":0,"d":0}')}catch(e){}if(!decisive)v.d=(v.d||0)+1;else if(winner===me)v.w=(v.w||0)+1;else v.l=(v.l||0)+1;try{localStorage.setItem('chessLocalStats',JSON.stringify(v))}catch(e){}updateStats();board.insertAdjacentHTML('beforeend','<div id="resultOverlay" role="status"><div class="result-title">'+message+'</div><div class="result-sub">Game finished</div></div>');$('status').textContent=message;}
 $('resign').onclick=()=>{if(gameOver||!mv.length)return;const resigning=on()||ai()?me:s.turn;if(!confirm((resigning==='w'?'White':'Black')+' resigns this game?'))return;if(on()&&room&&room.open)room.send({type:'resign',side:resigning});finishRemoteResult((resigning==='w'?'White':'Black')+' resigns',true,resigning==='w'?'b':'w');};
 $('drawOffer').onclick=()=>{if(gameOver||!mv.length)return;if(on()){if(room&&room.open){room.send({type:'draw-offer',side:me});setOl('Draw offer sent.');}else alert('Connect to your opponent first.');}else if($('mode').value==='2'){const offering=s.turn==='w'?'Black':'White',accepting=s.turn==='w'?'White':'Black';if(confirm(offering+' offers a draw. '+accepting+', accept the draw?'))finishRemoteResult('DRAW',false,null);}else alert('Draw offers are available in Local 2-player and Online modes.');};
 $('claimDraw').onclick=()=>{if(gameOver)return;if(repetitionCount(s)>=3||(s.halfmove||0)>=100){if(on()&&room&&room.open)room.send({type:'draw-claim'});finishRemoteResult('DRAW',false,null);}else alert('A draw cannot be claimed yet. Threefold repetition or 50 moves without a pawn move or capture is required.');};
