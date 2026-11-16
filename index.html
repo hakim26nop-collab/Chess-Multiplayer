@@ -250,7 +250,7 @@ let s, hist, sel, last, busy, me = 'w', tm, resultRecorded = false, gameOver = f
 const ai = () => 'emh'.includes($('mode').value);
 const on = () => $('mode').value === 'o';
 const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-';
-let mv = '', room = null, rc = '', g = 0, unsub = null, ready = false;
+let mv = '', sanMoves = [], promos = [], room = null, rc = '', g = 0, unsub = null, ready = false;
 const isW = p => p === p.toUpperCase();
 
 function attacked(b, sq, by) {
@@ -315,7 +315,14 @@ function gen(s) {
   return out;
 }
 
-function positionKey(st) { return st.b.join('')+'| '+st.turn+'|'+st.r+'|'+st.ep; }
+function positionKey(st) { return st.b.join('')+'|'+st.turn+'|'+st.r+'|'+st.ep; }
+function toSAN(st,m){
+ const p=st.b[m.from],k=p.toLowerCase(),capture=!!st.b[m.to]||!!m.ep;
+ const file='abcdefgh'[m.from&7],rank=8-(m.from>>3),dest='abcdefgh'[m.to&7]+(8-(m.to>>3));let out='';
+ if(m.castle)out=m.castle==='K'?'O-O':'O-O-O';
+ else{if(k!=='p'){out=p.toUpperCase();const other=legal(st).filter(x=>x.from!==m.from&&x.to===m.to&&st.b[x.from]&&st.b[x.from].toLowerCase()===k);if(other.length){if(!other.some(x=>(x.from&7)!==(m.from&7)))out+=file;else if(!other.some(x=>(x.from>>3)!==(m.from>>3)))out+=rank;else out+=file+rank;}}else if(capture)out=file;if(capture)out+='x';out+=dest;if(m.promo)out+='='+(m.promotion||'q').toUpperCase();}
+ const next=apply(st,m),moves=legal(next);if(inChk(next.b,next.turn))out+=moves.length?'+':'#';return out;
+}
 function repetitionCount(st) { const key=positionKey(st); let n=1; for(const h of (hist||[])) if(h.s&&positionKey(h.s)===key)n++; return n; }
 function insufficientMaterial(st) { const a=st.b.map(p=>p?p.toLowerCase():'').filter(p=>p&&p!=='k'); if(!a.length)return true; if(a.some(p=>['p','r','q'].includes(p)))return false; if(a.length===1)return true; if(a.every(p=>p==='b')){const x=st.b.map((p,i)=>p&&p.toLowerCase()==='b'?((i>>3)+(i&7))%2:-1).filter(v=>v>=0);return x.every(v=>v===x[0]);} return false; }
 function drawReason(st) { if(repetitionCount(st)>=5)return 'Draw by fivefold repetition'; if((st.halfmove||0)>=150)return 'Draw by the seventy-five-move rule'; if(insufficientMaterial(st))return 'Draw by insufficient material'; return ''; }
@@ -415,8 +422,7 @@ function recordResult(check) {
 function doMove(m) {
   const wasCapture = !!s.b[m.to] || !!m.ep;
   const pieceStartRect = board.querySelector('.sq[data-i="' + m.from + '"] span')?.getBoundingClientRect() || null;
-  hist.push({ s, last, mv });
-  s = apply(s, m); last = [m.from, m.to]; sel = -1; mv += A[m.from] + A[m.to]; if (on() && room) push(m);
+  const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice()});s=apply(s,m);last=[m.from,m.to];sel=-1;mv+=A[m.from]+A[m.to];sanMoves.push(san);promos.push(m.promotion||'');if(on()&&room)push(m);
   playMoveSound(wasCapture, inChk(s.b, s.turn));
   render(pieceStartRect);
   if (ai() && s.turn !== me && legal(s).length) { busy = true; tm = setTimeout(aiMove, 60); }
@@ -493,7 +499,7 @@ board.onclick = e => {
   const i = +q.dataset.i, L = legal(s);
   if (!L.length || gameOver || drawReason(s) || (ai() && s.turn !== me) || (on() && (!room || s.turn !== me))) return;
   const m = L.find(m => m.from === sel && m.to === i);
-  if (m) { if(m.promo&&!on()){const v=(prompt('Promote to Q, R, B, or N?','Q')||'Q').toLowerCase();m.promotion=['q','r','b','n'].includes(v)?v:'q';} return doMove(m); }
+  if (m) { if(m.promo){const v=(prompt('Promote to Q (Queen), R (Rook), B (Bishop), or N (Knight)?','Q')||'Q').toLowerCase();m.promotion=['q','r','b','n'].includes(v)?v:'q';} return doMove(m); }
   const p = s.b[i];
   sel = p && isW(p) === (s.turn === 'w') ? i : -1;
   render();
@@ -512,7 +518,7 @@ $('mode').onchange = modeChange;
 $('side').onchange = init;
 $('undo').onclick = () => {
   if (busy || !hist.length) return;
-  do { const h = hist.pop(); s = h.s; last = h.last; mv = h.mv || ''; } while (ai() && s.turn !== me && hist.length);
+  do { const h = hist.pop(); s = h.s; last = h.last; mv = h.mv || ''; sanMoves=h.sanMoves||[];promos=h.promos||[]; } while (ai() && s.turn !== me && hist.length);
   resultRecorded = false;
   gameOver = false;
   sel = -1;
@@ -522,18 +528,9 @@ $('undo').onclick = () => {
 /* ===== Online lewat PeerJS (WebRTC, tanpa akun) ===== */
 let peer = null;
 function setOl(t) { $('olm').textContent = t; }
-function push(m) { if (!room || !room.open) return; if (m) room.send({ g: g, n: mv.length / 2, f: A[m.from] + A[m.to] }); else room.send({ g: g, m: mv }); }
+function push(m){if(!room||!room.open)return;if(m)room.send({g:g,n:mv.length/2,f:A[m.from]+A[m.to],p:m.promotion||''});else room.send({g:g,m:mv,p:promos.slice()});}
 const newBoard = () => ({ b: [...'rnbqkbnr'.split(''), ...Array(8).fill('p'), ...Array(32).fill(''), ...Array(8).fill('P'), ...'RNBQKBNR'.split('')], turn: 'w', r: 'KQkq', ep: -1 });
-function rebuild(str) {
-  s = newBoard(); hist = []; last = null; mv = '';
-  for (let i = 0; i + 1 < str.length; i += 2) {
-    const f = A.indexOf(str[i]), t = A.indexOf(str[i + 1]);
-    const m = legal(s).find(x => x.from === f && x.to === t);
-    if (!m) break;
-    hist.push({ s, last, mv }); s = apply(s, m); last = [f, t]; mv += str[i] + str[i + 1];
-  }
-  sel = -1; render();
-}
+function rebuild(str,plist=[]){s=newBoard();hist=[];last=null;mv='';sanMoves=[];promos=[];for(let i=0;i+1<str.length;i+=2){const f=A.indexOf(str[i]),t=A.indexOf(str[i+1]),m=legal(s).find(x=>x.from===f&&x.to===t);if(!m)break;m.promotion=plist[i/2]||'';const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice()});s=apply(s,m);last=[f,t];mv+=str[i]+str[i+1];sanMoves.push(san);promos.push(m.promotion||'');}sel=-1;gameOver=false;resultRecorded=false;render();}
 function olStatus(t) { setOl('Room: ' + rc + ' \u00b7 You: ' + (me === 'w' ? 'White' : 'Black') + ' \u00b7 ' + t); }
 function recv(d) {
   if (!d || typeof d !== 'object') return;
@@ -545,8 +542,8 @@ function recv(d) {
   if (d.req) { if (room && room.open) room.send({ g: g, m: mv }); return; }
   const pg = +d.g || 0;
   if (typeof d.m === 'string' && d.m.length <= 2000) {
-    if (pg > g) { g = pg; rebuild(d.m); }
-    else if (pg === g && d.m.length > mv.length && d.m.startsWith(mv)) rebuild(d.m);
+    if (pg > g) { g = pg; rebuild(d.m,Array.isArray(d.p)?d.p:[]); }
+    else if (pg === g && d.m.length > mv.length && d.m.startsWith(mv)) rebuild(d.m,Array.isArray(d.p)?d.p:[]);
     return;
   }
   if (typeof d.f !== 'string' || d.f.length !== 2 || !Number.isInteger(d.n)) return;
@@ -557,9 +554,10 @@ function recv(d) {
   const from = A.indexOf(d.f[0]), to = A.indexOf(d.f[1]);
   const m = legal(s).find(x => x.from === from && x.to === to);
   if (!m) { if (room && room.open) room.send({ g: g, req: true }); return; }
-  hist.push({ s, last, mv });
+  if(m.promo)m.promotion=['q','r','b','n'].includes(d.p)?d.p:'q';
+  const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice()});
   const wasCapture = !!s.b[to] || !!m.ep;
-  s = apply(s, m); last = [from, to]; mv += d.f; sel = -1;
+  s = apply(s, m); last = [from, to]; mv += d.f;sanMoves.push(san);promos.push(m.promotion||'');sel=-1;
   playMoveSound(wasCapture, inChk(s.b, s.turn)); render();
 }
 function bind(c) {
@@ -575,7 +573,7 @@ function leaveRoom() {
   try { if (peer) peer.destroy(); } catch (e) {}
   room = null; peer = null;
 }
-function resetBoard() { resultRecorded = false; gameOver=false; s = newBoard(); hist = []; last = null; sel = -1; mv = ''; g = 0; }
+function resetBoard() { resultRecorded = false; gameOver=false; s = newBoard(); hist = []; last = null; sel = -1; mv = '';sanMoves=[];promos=[]; g = 0; }
 function host(tries) {
   leaveRoom(); resetBoard(); me = 'w';
   const al = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = '';
@@ -621,9 +619,9 @@ $('jn').onclick = () => {
 };
 function finishRemoteResult(message,decisive,winner){if(gameOver)return;gameOver=true;resultRecorded=true;let v={w:0,l:0,d:0};try{v=JSON.parse(localStorage.getItem('chessLocalStats')||'{"w":0,"l":0,"d":0}')}catch(e){}if(!decisive)v.d=(v.d||0)+1;else if(winner===me)v.w=(v.w||0)+1;else v.l=(v.l||0)+1;try{localStorage.setItem('chessLocalStats',JSON.stringify(v))}catch(e){}updateStats();board.insertAdjacentHTML('beforeend','<div id="resultOverlay" role="status"><div class="result-title">'+message+'</div><div class="result-sub">Game finished</div></div>');$('status').textContent=message;}
 $('resign').onclick=()=>{if(gameOver||!mv.length)return;if(!confirm('Resign this game?'))return;if(on()&&room&&room.open)room.send({type:'resign',side:me});finishRemoteResult((me==='w'?'White':'Black')+' resigns',true,me==='w'?'b':'w');};
-$('drawOffer').onclick=()=>{if(gameOver||!mv.length)return;if(on()){if(room&&room.open){room.send({type:'draw-offer',side:me});setOl('Draw offer sent.');}}else if(confirm('Agree to a draw?'))finishRemoteResult('DRAW',false,null);};
+$('drawOffer').onclick=()=>{if(gameOver||!mv.length)return;if(on()){if(room&&room.open){room.send({type:'draw-offer',side:me});setOl('Draw offer sent.');}}else {const offering=s.turn==='w'?'Black':'White',accepting=s.turn==='w'?'White':'Black';if(confirm(offering+' offers a draw. '+accepting+', accept the draw?'))finishRemoteResult('DRAW',false,null);}};
 $('claimDraw').onclick=()=>{if(gameOver)return;if(repetitionCount(s)>=3||(s.halfmove||0)>=100){if(on()&&room&&room.open)room.send({type:'draw-claim'});finishRemoteResult('DRAW',false,null);}else alert('A draw cannot be claimed yet. Threefold repetition or 50 moves without a pawn move or capture is required.');};
-$('exportPgn').onclick=()=>{const sq=i=>'abcdefgh'[i&7]+(8-(i>>3));const a=[];for(let i=0;i+1<mv.length;i+=2)a.push(sq(A.indexOf(mv[i]))+sq(A.indexOf(mv[i+1])));const out=[];for(let i=0;i<a.length;i+=2)out.push((Math.floor(i/2)+1)+'. '+a[i]+(a[i+1]?' '+a[i+1]:''));const blob=new Blob(['[Event "Chess Multiplayer"]\n[Date "'+new Date().toISOString().slice(0,10)+'"]\n[Result "*"]\n\n'+out.join(' ')],{type:'text/plain'});const url=URL.createObjectURL(blob),el=document.createElement('a');el.href=url;el.download='chess-moves.txt';el.click();URL.revokeObjectURL(url);};
+$('exportPgn').onclick=()=>{const sq=i=>'abcdefgh'[i&7]+(8-(i>>3));const a=[];for(let i=0;i+1<mv.length;i+=2)a.push(sq(A.indexOf(mv[i]))+sq(A.indexOf(mv[i+1])));const out=[];for(let i=0;i<a.length;i+=2)out.push((Math.floor(i/2)+1)+'. '+a[i]+(a[i+1]?' '+a[i+1]:''));const result=gameOver?(drawReason(s)||(!legal(s).length?'1/2-1/2':'*')):'*';const finalResult=result==='*'?'*':result==='1/2-1/2'?'1/2-1/2':(s.turn==='w'?'0-1':'1-0');const tags=['[Event "Chess Multiplayer"]','[Site "Chess Multiplayer"]','[Date "'+new Date().toISOString().slice(0,10).replace(/-/g,'.')+'"]','[Round "-"]','[White "White"]','[Black "Black"]','[Result "'+finalResult+'"]'];const body=sanMoves.map((m,i)=>(i%2===0?(Math.floor(i/2)+1)+'. ':'')+m).join(' ');const blob=new Blob([tags.join('\n')+'\n\n'+body+' '+finalResult],{type:'application/x-chess-pgn'});const url=URL.createObjectURL(blob),el=document.createElement('a');el.href=url;el.download='chess-game.pgn';el.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 init();
 </script>
 </body>
