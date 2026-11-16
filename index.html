@@ -458,7 +458,7 @@ function render(pieceStartRect = null) {
     pairs.push({ white: sq(from) + '–' + sq(to), black: n + 3 < mv.length ? sq(f2) + '–' + sq(t2) : '' });
   }
   $('moveCount').textContent = '(' + mv.length / 2 + ')';
-  $('moveList').innerHTML = pairs.length ? pairs.map((p,i) => '<div class="move-pair"><span class="move-no">' + (i+1) + '.</span><span>' + p.white + '</span><span>' + p.black + '</span></div>').join('') : '<span>Belum ada langkah.</span>';
+  $('moveList').innerHTML = pairs.length ? pairs.map((p,i) => '<div class="move-pair"><span class="move-no">' + (i+1) + '.</span><span>' + p.white + '</span><span>' + p.black + '</span></div>').join('') : '<span>No moves yet.</span>';
 
   if (!L.length) {
     recordResult(chk);
@@ -485,7 +485,7 @@ function render(pieceStartRect = null) {
 
   const who = s.turn === 'w' ? 'White' : 'Black';
   $('status').innerHTML = !L.length
-    ? (chk ? `<b>Skakmat!</b> ${s.turn === 'w' ? 'Hitam' : 'Putih'} menang 🎉` : '<b>Remis</b> (stalemate)')
+    ? (chk ? `<b>Checkmate!</b> ${s.turn === 'w' ? 'Black' : 'White'} wins 🎉` : '<b>Remis</b> (stalemate)')
     : `${who} to move${chk ? ' — <b>Check!</b>' : ''}${busy ? ' (computer thinking...)' : ''}`;
 }
 
@@ -514,6 +514,7 @@ $('side').onchange = init;
 $('undo').onclick = () => {
   if (busy || !hist.length) return;
   do { const h = hist.pop(); s = h.s; last = h.last; mv = h.mv || ''; } while (ai() && s.turn !== me && hist.length);
+  resultRecorded = false;
   sel = -1;
   if (ai() && s.turn !== me && legal(s).length) { busy = true; tm = setTimeout(aiMove, 60); }
   render();
@@ -533,7 +534,7 @@ function rebuild(str) {
   }
   sel = -1; render();
 }
-function olStatus(t) { setOl('Kode: ' + rc + ' \u00b7 Kamu: ' + (me === 'w' ? 'Putih' : 'Hitam') + ' \u00b7 ' + t); }
+function olStatus(t) { setOl('Room: ' + rc + ' \u00b7 You: ' + (me === 'w' ? 'White' : 'Black') + ' \u00b7 ' + t); }
 function recv(d) {
   if (!d || typeof d !== 'object') return;
   if (d.req) { if (room && room.open) room.send({ g: g, m: mv }); return; }
