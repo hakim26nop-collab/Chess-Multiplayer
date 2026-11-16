@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Catur Online</title>
+<title>Online Chess</title>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
 *{box-sizing:border-box}
@@ -94,7 +94,7 @@ button:active{transform:scale(.97)}
 .sq span{display:block;position:relative;z-index:1;line-height:1;margin-top:-2%}.tp{font-size:1.06em}.tr{font-size:.98em}
 .lt{background:#ebecd0}
 .dk{background:#779556}
-/* Tema papan catur */
+/* Board theme catur */
 /* Kayu natural: warna hangat polos dengan gradasi sangat lembut, tanpa garis/pola optik */
 #board.theme-wood .lt{background:linear-gradient(180deg,#efd2a5 0%,#e8c28f 100%)}
 #board.theme-wood .dk{background:linear-gradient(180deg,#99613a 0%,#85502f 100%)}
@@ -132,51 +132,51 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
 </head>
 <body>
 <div class="wrap" id="wrap">
-  <div id="topbar"><h1>♟ Catur</h1><button id="fullscreen" class="alt" type="button">⛶ Layar Penuh</button></div>
+  <div id="topbar"><h1>♟ Chess</h1><button id="fullscreen" class="alt" type="button">⛶ Fullscreen</button></div>
   <div id="status"></div>
   <div id="board"></div>
   <details id="moveHistory">
-    <summary>Riwayat langkah <span id="moveCount">(0)</span></summary>
-    <div id="moveList"><span>Belum ada langkah.</span></div>
+    <summary>Move History <span id="moveCount">(0)</span></summary>
+    <div id="moveList"><span>No moves yet.</span></div>
   </details>
   <details id="settings">
-    <summary>⚙️ Pengaturan</summary>
+    <summary>⚙️ Settings</summary>
     <div class="setting-row"><label for="boardTheme">Tema papan</label><select id="boardTheme" aria-label="Tema papan catur">
-      <option value="classic">Papan: Klasik</option>
-      <option value="wood">Papan: Kayu</option>
-      <option value="marble">Papan: Marmer</option>
-      <option value="blue">Papan: Biru</option>
-      <option value="purple">Papan: Ungu</option>
-      <option value="slate">Papan: Abu-abu</option>
-      <option value="forest">Papan: Hutan</option>
+      <option value="classic">Board: Classic</option>
+      <option value="wood">Board: Wood</option>
+      <option value="marble">Board: Marble</option>
+      <option value="blue">Board: Blue</option>
+      <option value="purple">Board: Purple</option>
+      <option value="slate">Board: Slate</option>
+      <option value="forest">Board: Forest</option>
     </select></div>
-    <div class="setting-row"><label for="orientation">Aktifkan orientasi otomatis</label><input id="orientation" type="checkbox" checked></div>
-    <div class="setting-row"><label for="graphics">Grafik permainan</label><select id="graphics"><option value="standard">Standar</option><option value="low">Ringan</option><option value="high">Tinggi</option></select></div>
+    <div class="setting-row"><label for="orientation">Auto board orientation</label><input id="orientation" type="checkbox" checked></div>
+    <div class="setting-row"><label for="graphics">Graphics quality</label><select id="graphics"><option value="standard">Standard</option><option value="low">Low</option><option value="high">High</option></select></div>
   </details>
   <div class="row">
     <select id="mode">
-      <option value="e">Komputer: Mudah</option>
-      <option value="m" selected>Komputer: Sedang</option>
-      <option value="h">Komputer: Sulit</option>
-      <option value="2">2 Pemain (satu layar)</option>
-      <option value="o">Online (teman jarak jauh)</option>
+      <option value="e">Computer: Easy</option>
+      <option value="m" selected>Computer: Medium</option>
+      <option value="h">Computer: Hard</option>
+      <option value="2">Local 2-player</option>
+      <option value="o">Online (remote friend)</option>
     </select>
     <select id="side">
-      <option value="w">Main: Putih</option>
-      <option value="b">Main: Hitam</option>
+      <option value="w">Play as: White</option>
+      <option value="b">Play as: Black</option>
     </select>
   </div>
   <div class="row">
-    <button id="new">Game Baru</button>
-    <button id="undo" class="alt">Batal Langkah</button>
+    <button id="new">New Game</button>
+    <button id="undo" class="alt">Undo Move</button>
   </div>
   <div id="ol" class="hid">
     <div class="row">
-      <button id="mk">Buat Game</button>
-      <input id="code" placeholder="Kode" maxlength="8" autocapitalize="characters" autocomplete="off">
-      <button id="jn" class="alt">Gabung</button>
+      <button id="mk">Create Game</button>
+      <input id="code" placeholder="Room code" maxlength="8" autocapitalize="characters" autocomplete="off">
+      <button id="jn" class="alt">Join</button>
     </div>
-    <div id="olm">Buat game lalu kirim kodenya ke teman, atau masukkan kode dari teman. Tanpa akun.</div>
+    <div id="olm">Create a game and share the room code, or enter a friend’s code. No account required.</div>
   </div>
 </div>
 <script>
@@ -201,7 +201,7 @@ function syncFullscreenButton() {
   } else {
     ['--fs-board-size','width','height','min-width','min-height','max-width','max-height','grid-template-columns','grid-template-rows'].forEach(p => board.style.removeProperty(p));
   }
-  fsButton.textContent = active ? '✕ Keluar Full Screen' : '⛶ Papan Full Screen';
+  fsButton.textContent = active ? '✕ Exit Fullscreen' : '⛶ Fullscreen';
 }
 window.addEventListener('resize', syncFullscreenButton);
 window.addEventListener('orientationchange', syncFullscreenButton);
@@ -405,8 +405,8 @@ function render(pieceStartRect = null) {
   $('moveList').innerHTML = pairs.length ? pairs.map((p,i) => '<div class="move-pair"><span class="move-no">' + (i+1) + '.</span><span>' + p.white + '</span><span>' + p.black + '</span></div>').join('') : '<span>Belum ada langkah.</span>';
 
   if (!L.length) {
-    const title = chk ? (s.turn === 'w' ? 'PUTIH KALAH' : 'HITAM KALAH') : 'REMIS';
-    const subtitle = chk ? (s.turn === 'w' ? 'Hitam menang — Skakmat!' : 'Putih menang — Skakmat!') : 'Tidak ada langkah legal';
+    const title = chk ? (s.turn === 'w' ? 'WHITE LOSES' : 'BLACK LOSES') : 'DRAW';
+    const subtitle = chk ? (s.turn === 'w' ? 'Black wins — Checkmate!' : 'White wins — Checkmate!') : 'Stalemate';
     h += `<div id="resultOverlay" role="status" aria-live="assertive"><div class="result-title">${title}</div><div class="result-sub">${subtitle}</div></div>`;
   }
   board.innerHTML = h;
@@ -426,10 +426,10 @@ function render(pieceStartRect = null) {
     }
   }
 
-  const who = s.turn === 'w' ? 'Putih' : 'Hitam';
+  const who = s.turn === 'w' ? 'White' : 'Black';
   $('status').innerHTML = !L.length
     ? (chk ? `<b>Skakmat!</b> ${s.turn === 'w' ? 'Hitam' : 'Putih'} menang 🎉` : '<b>Remis</b> (stalemate)')
-    : `Giliran <b>${who}</b>${chk ? ' — <b>Skak!</b>' : ''}${busy ? ' (komputer berpikir...)' : ''}`;
+    : `${who} to move${chk ? ' — <b>Check!</b>' : ''}${busy ? ' (computer thinking...)' : ''}`;
 }
 
 board.onclick = e => {
@@ -484,11 +484,11 @@ function recv(d) {
 }
 function bind(c) {
   room = c;
-  const up = () => { olStatus('Lawan terhubung'); push(); render(); };
+  const up = () => { olStatus('Opponent connected'); push(); render(); };
   if (c.open) up(); else c.on('open', up);
   c.on('data', recv);
-  c.on('close', () => { room = null; olStatus('Lawan terputus. Buat game baru untuk lanjut.'); });
-  c.on('error', () => olStatus('Koneksi bermasalah'));
+  c.on('close', () => { room = null; olStatus('Opponent disconnected. Start a new game to continue.'); });
+  c.on('error', () => olStatus('Connection problem'));
 }
 function leaveRoom() {
   try { if (room) room.close(); } catch (e) {}
@@ -502,16 +502,16 @@ function host(tries) {
   for (let i = 0; i < 6; i++) c += al[Math.floor(Math.random() * al.length)];
   rc = c; render();
   if (!window.Peer) return setOl('Library PeerJS gagal dimuat. Periksa koneksi internet.');
-  setOl('Membuat game...');
+  setOl('Creating game...');
   peer = new Peer('catur-' + c.toLowerCase());
-  peer.on('open', () => olStatus('Menunggu lawan...'));
+  peer.on('open', () => olStatus('Waiting for opponent...'));
   peer.on('connection', conn => { if (room) { conn.close(); return; } bind(conn); });
   peer.on('error', e => { if (e.type === 'unavailable-id' && tries < 5) host(tries + 1); else setOl('Gagal membuat game (' + e.type + '). Coba lagi.'); });
 }
 function join(code) {
   leaveRoom(); resetBoard(); me = 'b'; rc = code; render();
   if (!window.Peer) return setOl('Library PeerJS gagal dimuat. Periksa koneksi internet.');
-  setOl('Menghubungkan...');
+  setOl('Connecting...');
   peer = new Peer();
   peer.on('open', () => {
     const c = peer.connect('catur-' + code.toLowerCase(), { reliable: true });
@@ -536,7 +536,7 @@ function modeChange() {
 $('mk').onclick = () => host(0);
 $('jn').onclick = () => {
   const c = $('code').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (c.length < 4) return setOl('Masukkan kode dari temanmu.');
+  if (c.length < 4) return setOl('Enter your friend’s room code.');
   join(c);
 };
 init();
