@@ -514,6 +514,7 @@ $('undo').onclick = () => {
   if (busy || !hist.length) return;
   do { const h = hist.pop(); s = h.s; last = h.last; mv = h.mv || ''; } while (ai() && s.turn !== me && hist.length);
   resultRecorded = false;
+  gameOver = false;
   sel = -1;
   if (ai() && s.turn !== me && legal(s).length) { busy = true; tm = setTimeout(aiMove, 60); }
   render();
