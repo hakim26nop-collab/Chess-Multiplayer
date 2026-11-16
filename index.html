@@ -119,8 +119,8 @@ button:active{transform:scale(.97)}
 .ck::before{content:"";position:absolute;inset:0;background:radial-gradient(circle,rgba(255,40,40,.9) 20%,rgba(255,40,40,0) 72%)}
 .tg::after{content:"";position:absolute;width:32%;height:32%;border-radius:50%;background:rgba(0,0,0,.15)}
 .cap::after{content:"";position:absolute;inset:0;border-radius:50%;border:calc(var(--cell)*.09) solid rgba(0,0,0,.15)}
-.pw{color:#fff;-webkit-text-stroke:1.5px #262421;filter:drop-shadow(0 1.5px 0 rgba(0,0,0,.25))}
-.pb{color:#312e2b;-webkit-text-stroke:1px #151412;filter:drop-shadow(0 1.5px 0 rgba(0,0,0,.25))}
+.pw{color:#fff;-webkit-text-stroke:1.35px #25231f;paint-order:stroke fill;text-shadow:0 1px 1px rgba(0,0,0,.28);filter:drop-shadow(0 1.5px 1px rgba(0,0,0,.28))}
+.pb{color:#292724;-webkit-text-stroke:1px #f0e9d8;paint-order:stroke fill;text-shadow:0 1px 1px rgba(255,255,255,.16);filter:drop-shadow(0 1.5px 1px rgba(0,0,0,.32))}
 .row{display:flex;gap:8px;flex-wrap:wrap;min-width:0}
 .hid{display:none!important}
 input{font:inherit;border:0;border-radius:12px;padding:11px;min-height:44px;flex:1 1 100px;min-width:0;max-width:100%;background:var(--card);color:var(--text);box-shadow:0 1px 6px rgba(0,0,0,.15);text-align:center;letter-spacing:2px;font-weight:600}
@@ -236,7 +236,7 @@ themeSelect.onchange = () => {
   try { localStorage.setItem('chessBoardTheme', themeSelect.value); } catch(e) {}
   render();
 };
-const G = { K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙', k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
+const G = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟', k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
 const V = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
 const dN = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
 const dK = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
