@@ -141,7 +141,7 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
   <div id="board"></div>
   <div id="captured" aria-label="Captured pieces"><div class="side" id="whiteCaptured"><span class="cap-label">WHITE TAKES</span></div><div class="side" id="blackCaptured"><span class="cap-label">BLACK TAKES</span></div></div>
   <div id="stats">Local record: 0 wins · 0 losses · 0 draws</div>
-  <div class="row" id="matchTools"><button id="resign" class="alt" type="button">Resign</button><button id="drawOffer" class="alt" type="button">Offer draw</button><button id="claimDraw" class="alt" type="button">Claim draw</button><button id="exportPgn" class="alt" type="button">Export move list</button></div>
+  <div class="row" id="matchTools"><button id="resign" class="alt" type="button">Resign</button><button id="drawOffer" class="alt" type="button">Offer draw</button><button id="claimDraw" class="alt" type="button">Claim draw</button><button id="exportPgn" class="alt" type="button">Export PGN</button></div>
   <details id="moveHistory">
     <summary>Move History <span id="moveCount">(0)</span></summary>
     <div id="moveList"><span>No moves yet.</span></div>
@@ -250,7 +250,7 @@ let s, hist, sel, last, busy, me = 'w', tm, resultRecorded = false, gameOver = f
 const ai = () => 'emh'.includes($('mode').value);
 const on = () => $('mode').value === 'o';
 const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-';
-let mv = '', sanMoves = [], promos = [], room = null, rc = '', g = 0, unsub = null, ready = false;
+let mv = '', sanMoves = [], promos = [], pgnResult='*', room = null, rc = '', g = 0, unsub = null, ready = false;
 const isW = p => p === p.toUpperCase();
 
 function attacked(b, sq, by) {
@@ -466,7 +466,7 @@ function render(pieceStartRect = null) {
   $('moveList').innerHTML = pairs.length ? pairs.map((p,i) => '<div class="move-pair"><span class="move-no">' + (i+1) + '.</span><span>' + p.white + '</span><span>' + p.black + '</span></div>').join('') : '<span>No moves yet.</span>';
 
   if (!L.length || draw) {
-    gameOver=true; if(!resultRecorded)recordResult(chk&&!draw);
+    gameOver=true; pgnResult=(draw||!chk)?'1/2-1/2':(s.turn==='w'?'0-1':'1-0'); if(!resultRecorded)recordResult(chk&&!draw);
     const title = draw ? 'DRAW' : chk ? (s.turn === 'w' ? 'WHITE LOSES' : 'BLACK LOSES') : 'DRAW';
     const subtitle = draw || 'Stalemate';
     h += `<div id="resultOverlay" role="status" aria-live="assertive"><div class="result-title">${title}</div><div class="result-sub">${subtitle}</div></div>`;
@@ -506,7 +506,7 @@ board.onclick = e => {
 };
 
 function init() {
-  resultRecorded = false; gameOver=false;
+  resultRecorded = false; gameOver=false; pgnResult='*';
   const back = 'rnbqkbnr'.split(''), front = 'RNBQKBNR'.split('');
   s = { b: [...back, ...Array(8).fill('p'), ...Array(32).fill(''), ...Array(8).fill('P'), ...front], turn: 'w', r: 'KQkq', ep: -1 };
   clearTimeout(tm); mv = ''; sanMoves=[]; promos=[]; me = $('side').value; hist = []; sel = -1; last = null; busy = false;
@@ -534,7 +534,7 @@ function rebuild(str,plist=[]){s=newBoard();hist=[];last=null;mv='';sanMoves=[];
 function olStatus(t) { setOl('Room: ' + rc + ' \u00b7 You: ' + (me === 'w' ? 'White' : 'Black') + ' \u00b7 ' + t); }
 function recv(d) {
   if (!d || typeof d !== 'object' || gameOver) return;
-  if(d.type==='resign'){finishRemoteResult((d.side==='w'?'White':'Black')+' resigns',true,d.side==='w'?'b':'w');return;}
+  if(d.type==='resign'){if(d.side!=='w'&&d.side!=='b')return;finishRemoteResult((d.side==='w'?'White':'Black')+' resigns',true,d.side==='w'?'b':'w');return;}
   if(d.type==='draw-offer'){if(confirm('Your opponent offers a draw. Accept?')){if(room&&room.open)room.send({type:'draw-accept'});finishRemoteResult('DRAW',false,null);}else if(room&&room.open)room.send({type:'draw-decline'});return;}
   if(d.type==='draw-accept'){finishRemoteResult('DRAW',false,null);return;}
   if(d.type==='draw-claim'){if(repetitionCount(s)>=3||(s.halfmove||0)>=100)finishRemoteResult('DRAW',false,null);else setOl('Opponent made an invalid draw claim.');return;}
@@ -573,7 +573,7 @@ function leaveRoom() {
   try { if (peer) peer.destroy(); } catch (e) {}
   room = null; peer = null;
 }
-function resetBoard() { resultRecorded = false; gameOver=false; s = newBoard(); hist = []; last = null; sel = -1; mv = '';sanMoves=[];promos=[]; g = 0; }
+function resetBoard() { resultRecorded = false; gameOver=false; pgnResult='*'; s = newBoard(); hist = []; last = null; sel = -1; mv = '';sanMoves=[];promos=[]; g = 0; }
 function host(tries) {
   leaveRoom(); resetBoard(); me = 'w';
   const al = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = '';
@@ -617,11 +617,11 @@ $('jn').onclick = () => {
   if (c.length < 4) return setOl('Enter your friend’s room code.');
   join(c);
 };
-function finishRemoteResult(message,decisive,winner){if(gameOver)return;gameOver=true;resultRecorded=true;let v={w:0,l:0,d:0};try{v=JSON.parse(localStorage.getItem('chessLocalStats')||'{"w":0,"l":0,"d":0}')}catch(e){}if(!decisive)v.d=(v.d||0)+1;else if(winner===me)v.w=(v.w||0)+1;else v.l=(v.l||0)+1;try{localStorage.setItem('chessLocalStats',JSON.stringify(v))}catch(e){}updateStats();board.insertAdjacentHTML('beforeend','<div id="resultOverlay" role="status"><div class="result-title">'+message+'</div><div class="result-sub">Game finished</div></div>');$('status').textContent=message;}
+function finishRemoteResult(message,decisive,winner){if(gameOver)return;gameOver=true;resultRecorded=true;pgnResult=decisive?(winner==='w'?'1-0':'0-1'):'1/2-1/2';let v={w:0,l:0,d:0};try{v=JSON.parse(localStorage.getItem('chessLocalStats')||'{"w":0,"l":0,"d":0}')}catch(e){}if(!decisive)v.d=(v.d||0)+1;else if(winner===me)v.w=(v.w||0)+1;else v.l=(v.l||0)+1;try{localStorage.setItem('chessLocalStats',JSON.stringify(v))}catch(e){}updateStats();board.insertAdjacentHTML('beforeend','<div id="resultOverlay" role="status"><div class="result-title">'+message+'</div><div class="result-sub">Game finished</div></div>');$('status').textContent=message;}
 $('resign').onclick=()=>{if(gameOver||!mv.length)return;if(!confirm('Resign this game?'))return;if(on()&&room&&room.open)room.send({type:'resign',side:me});finishRemoteResult((me==='w'?'White':'Black')+' resigns',true,me==='w'?'b':'w');};
 $('drawOffer').onclick=()=>{if(gameOver||!mv.length)return;if(on()){if(room&&room.open){room.send({type:'draw-offer',side:me});setOl('Draw offer sent.');}}else {const offering=s.turn==='w'?'Black':'White',accepting=s.turn==='w'?'White':'Black';if(confirm(offering+' offers a draw. '+accepting+', accept the draw?'))finishRemoteResult('DRAW',false,null);}};
 $('claimDraw').onclick=()=>{if(gameOver)return;if(repetitionCount(s)>=3||(s.halfmove||0)>=100){if(on()&&room&&room.open)room.send({type:'draw-claim'});finishRemoteResult('DRAW',false,null);}else alert('A draw cannot be claimed yet. Threefold repetition or 50 moves without a pawn move or capture is required.');};
-$('exportPgn').onclick=()=>{const sq=i=>'abcdefgh'[i&7]+(8-(i>>3));const a=[];for(let i=0;i+1<mv.length;i+=2)a.push(sq(A.indexOf(mv[i]))+sq(A.indexOf(mv[i+1])));const out=[];for(let i=0;i<a.length;i+=2)out.push((Math.floor(i/2)+1)+'. '+a[i]+(a[i+1]?' '+a[i+1]:''));const terminalDraw=!!drawReason(s)||(!legal(s).length&&!inChk(s.b,s.turn));const terminalMate=gameOver&&!terminalDraw&&!legal(s).length&&inChk(s.b,s.turn);const finalResult=!gameOver?'*':terminalDraw?'1/2-1/2':terminalMate?(s.turn==='w'?'0-1':'1-0'):(resultRecorded&&s.turn!==me?(me==='w'?'1-0':'0-1'):(me==='w'?'0-1':'1-0'));const tags=['[Event "Chess Multiplayer"]','[Site "Chess Multiplayer"]','[Date "'+new Date().toISOString().slice(0,10).replace(/-/g,'.')+'"]','[Round "-"]','[White "White"]','[Black "Black"]','[Result "'+finalResult+'"]'];const body=sanMoves.map((m,i)=>(i%2===0?(Math.floor(i/2)+1)+'. ':'')+m).join(' ');const blob=new Blob([tags.join('\n')+'\n\n'+body+' '+finalResult],{type:'application/x-chess-pgn'});const url=URL.createObjectURL(blob),el=document.createElement('a');el.href=url;el.download='chess-game.pgn';el.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+$('exportPgn').onclick=()=>{const sq=i=>'abcdefgh'[i&7]+(8-(i>>3));const a=[];for(let i=0;i+1<mv.length;i+=2)a.push(sq(A.indexOf(mv[i]))+sq(A.indexOf(mv[i+1])));const out=[];for(let i=0;i<a.length;i+=2)out.push((Math.floor(i/2)+1)+'. '+a[i]+(a[i+1]?' '+a[i+1]:''));const finalResult=pgnResult;const tags=['[Event "Chess Multiplayer"]','[Site "Chess Multiplayer"]','[Date "'+new Date().toISOString().slice(0,10).replace(/-/g,'.')+'"]','[Round "-"]','[White "White"]','[Black "Black"]','[Result "'+finalResult+'"]'];const body=sanMoves.map((m,i)=>(i%2===0?(Math.floor(i/2)+1)+'. ':'')+m).join(' ');const blob=new Blob([tags.join('\n')+'\n\n'+body+' '+finalResult],{type:'application/x-chess-pgn'});const url=URL.createObjectURL(blob),el=document.createElement('a');el.href=url;el.download='chess-game.pgn';el.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 init();
 </script>
 </body>
