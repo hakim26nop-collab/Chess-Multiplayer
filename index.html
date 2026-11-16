@@ -362,7 +362,7 @@ function aiMove() {
 
 function doMove(m) {
   const pieceStartRect = board.querySelector('.sq[data-i="' + m.from + '"] span')?.getBoundingClientRect() || null;
-  hist.push({ s, last });
+  hist.push({ s, last, mv });
   s = apply(s, m); last = [m.from, m.to]; sel = -1; mv += A[m.from] + A[m.to]; if (on() && room) push();
   render(pieceStartRect);
   if (ai() && s.turn !== me && legal(s).length) { busy = true; tm = setTimeout(aiMove, 60); }
@@ -392,7 +392,7 @@ function render(pieceStartRect = null) {
     if (last && (i === last[0] || i === last[1])) cl += ' lm';
     if (i === ks) cl += ' ck';
     if (tg.has(i)) cl += p ? ' cap' : ' tg';
-    h += `<div class="${cl}" data-i="${i}">${lab(r, c)}${p ? `<span class="${isW(p) ? 'pw' : 'pb'} t${p.toLowerCase()}">${G[p.toUpperCase()] }\\uFE0E</span>` : ''}</div>`;
+    h += `<div class="${cl}" data-i="${i}">${lab(r, c)}${p ? `<span class="${isW(p) ? 'pw' : 'pb'} t${p.toLowerCase()}">${G[p.toUpperCase()] }&#xFE0E;</span>` : ''}</div>`;
   }
   const pairs = [];
   for (let n = 0; n + 1 < mv.length; n += 4) {
@@ -455,7 +455,7 @@ $('mode').onchange = modeChange;
 $('side').onchange = init;
 $('undo').onclick = () => {
   if (busy || !hist.length) return;
-  do { const h = hist.pop(); s = h.s; last = h.last; } while (ai() && s.turn !== me && hist.length);
+  do { const h = hist.pop(); s = h.s; last = h.last; mv = h.mv || ''; } while (ai() && s.turn !== me && hist.length);
   sel = -1;
   if (ai() && s.turn !== me && legal(s).length) { busy = true; tm = setTimeout(aiMove, 60); }
   render();
@@ -471,7 +471,7 @@ function rebuild(str) {
     const f = A.indexOf(str[i]), t = A.indexOf(str[i + 1]);
     const m = legal(s).find(x => x.from === f && x.to === t);
     if (!m) break;
-    hist.push({ s, last }); s = apply(s, m); last = [f, t]; mv += str[i] + str[i + 1];
+    hist.push({ s, last, mv }); s = apply(s, m); last = [f, t]; mv += str[i] + str[i + 1];
   }
   sel = -1; render();
 }
