@@ -521,6 +521,7 @@ $('undo').onclick = () => {
   do { const h = hist.pop(); s = h.s; last = h.last; mv = h.mv || ''; sanMoves=h.sanMoves||[];promos=h.promos||[]; } while (ai() && s.turn !== me && hist.length);
   resultRecorded = false;
   gameOver = false;
+  pgnResult = '*';
   sel = -1;
   if (ai() && s.turn !== me && legal(s).length) { busy = true; tm = setTimeout(aiMove, 60); }
   render();
@@ -530,7 +531,7 @@ let peer = null;
 function setOl(t) { $('olm').textContent = t; }
 function push(m){if(!room||!room.open)return;if(m)room.send({g:g,n:mv.length/2,f:A[m.from]+A[m.to],p:m.promotion||''});else room.send({g:g,m:mv,p:promos.slice()});}
 const newBoard = () => ({ b: [...'rnbqkbnr'.split(''), ...Array(8).fill('p'), ...Array(32).fill(''), ...Array(8).fill('P'), ...'RNBQKBNR'.split('')], turn: 'w', r: 'KQkq', ep: -1 });
-function rebuild(str,plist=[]){s=newBoard();hist=[];last=null;mv='';sanMoves=[];promos=[];for(let i=0;i+1<str.length;i+=2){const f=A.indexOf(str[i]),t=A.indexOf(str[i+1]),m=legal(s).find(x=>x.from===f&&x.to===t);if(!m)break;m.promotion=plist[i/2]||'';const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice()});s=apply(s,m);last=[f,t];mv+=str[i]+str[i+1];sanMoves.push(san);promos.push(m.promotion||'');}sel=-1;gameOver=false;resultRecorded=false;render();}
+function rebuild(str,plist=[]){s=newBoard();hist=[];last=null;mv='';sanMoves=[];promos=[];for(let i=0;i+1<str.length;i+=2){const f=A.indexOf(str[i]),t=A.indexOf(str[i+1]),m=legal(s).find(x=>x.from===f&&x.to===t);if(!m)break;m.promotion=plist[i/2]||'';const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice()});s=apply(s,m);last=[f,t];mv+=str[i]+str[i+1];sanMoves.push(san);promos.push(m.promotion||'');}sel=-1;gameOver=false;resultRecorded=false;pgnResult='*';render();}
 function olStatus(t) { setOl('Room: ' + rc + ' \u00b7 You: ' + (me === 'w' ? 'White' : 'Black') + ' \u00b7 ' + t); }
 function recv(d) {
   if (!d || typeof d !== 'object' || gameOver) return;
