@@ -192,21 +192,15 @@ const fsButton = $('fullscreen');
 function syncFullscreenButton() {
   const active = document.fullscreenElement === wrap || wrap.classList.contains('pseudo-fullscreen');
   if (active) {
-    const vv = window.visualViewport;
-    const w = vv ? vv.width : window.innerWidth;
-    const h = vv ? vv.height : window.innerHeight;
+    // Use the actual layout viewport: visualViewport can shrink or scale when
+    // a tablet is zoomed, producing a board that is unexpectedly too small.
+    const root = document.documentElement;
+    const w = root.clientWidth || window.innerWidth;
+    const h = root.clientHeight || window.innerHeight;
     const size = Math.max(1, Math.floor(Math.min(w, h)));
-    board.style.setProperty('--fs-board-size', size + 'px');
-    board.style.setProperty('width', size + 'px', 'important');
-    board.style.setProperty('height', size + 'px', 'important');
-    board.style.setProperty('min-width', size + 'px', 'important');
-    board.style.setProperty('min-height', size + 'px', 'important');
-    board.style.setProperty('max-width', size + 'px', 'important');
-    board.style.setProperty('max-height', size + 'px', 'important');
-    board.style.setProperty('grid-template-columns', 'repeat(8,minmax(0,1fr))', 'important');
-    board.style.setProperty('grid-template-rows', 'repeat(8,minmax(0,1fr))', 'important');
+    wrap.style.setProperty('--fs-board-size', size + 'px');
   } else {
-    ['--fs-board-size','width','height','min-width','min-height','max-width','max-height','grid-template-columns','grid-template-rows'].forEach(p => board.style.removeProperty(p));
+    wrap.style.removeProperty('--fs-board-size');
   }
   fsButton.textContent = active ? '✕ Exit Fullscreen' : '⛶ Fullscreen';
 }
