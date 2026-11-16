@@ -148,6 +148,7 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
   </details>
   <details id="settings">
     <summary>⚙️ Settings</summary>
+    <div class="setting-row"><label for="appTheme">Tema tampilan</label><select id="appTheme" aria-label="Tema tampilan"><option value="system">Ikuti perangkat</option><option value="light">Terang</option><option value="dark">Gelap</option></select></div>
     <div class="setting-row"><label for="boardTheme">Tema papan</label><select id="boardTheme" aria-label="Tema papan catur">
       <option value="classic">Board: Classic</option>
       <option value="wood">Board: Wood</option>
@@ -227,6 +228,17 @@ document.addEventListener('keydown', e => {
     syncFullscreenButton();
   }
 });
+const appThemeSelect = $('appTheme');
+function applyAppTheme(theme) {
+  if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+  else document.documentElement.removeAttribute('data-theme');
+}
+try { appThemeSelect.value = localStorage.getItem('chessAppTheme') || 'system'; } catch(e) {}
+applyAppTheme(appThemeSelect.value);
+appThemeSelect.onchange = () => {
+  applyAppTheme(appThemeSelect.value);
+  try { localStorage.setItem('chessAppTheme', appThemeSelect.value); } catch(e) {}
+};
 const themeSelect = $('boardTheme');
 const orientationToggle = $('orientation');
 const graphicsSelect = $('graphics');
