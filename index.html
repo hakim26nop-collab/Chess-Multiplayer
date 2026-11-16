@@ -51,6 +51,10 @@ h1{font-size:clamp(18px,4vw,22px);margin:0}#topbar{display:flex;align-items:cent
 .wrap:fullscreen #moveHistory,.wrap.pseudo-fullscreen #moveHistory{display:none!important}
 #status{font-size:15px;min-height:22px;color:var(--muted)}
 #status b{color:var(--text)}
+#captured{width:100%;max-width:var(--bs);display:flex;justify-content:space-between;gap:10px;padding:7px 10px;background:var(--card);border-radius:10px;box-shadow:0 1px 5px rgba(0,0,0,.1);font-size:clamp(17px,4vw,23px);min-height:38px}
+#captured .side{display:flex;align-items:center;gap:3px;min-width:0;flex-wrap:wrap}
+#captured .cap-label{font-size:10px;color:var(--muted);font-weight:700;margin-right:4px}
+#stats{font-size:12px;color:var(--muted);text-align:center}
 
 #board{position:relative}
 #resultOverlay{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:18px;text-align:center;background:rgba(10,15,13,.66);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);animation:resultFade .35s ease-out}
@@ -135,6 +139,8 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
   <div id="topbar"><h1>♟ Chess</h1><button id="fullscreen" class="alt" type="button">⛶ Fullscreen</button></div>
   <div id="status"></div>
   <div id="board"></div>
+  <div id="captured" aria-label="Captured pieces"><div class="side" id="whiteCaptured"><span class="cap-label">WHITE TAKES</span></div><div class="side" id="blackCaptured"><span class="cap-label">BLACK TAKES</span></div></div>
+  <div id="stats">Local record: 0 wins · 0 losses · 0 draws</div>
   <details id="moveHistory">
     <summary>Move History <span id="moveCount">(0)</span></summary>
     <div id="moveList"><span>No moves yet.</span></div>
@@ -151,6 +157,7 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
       <option value="forest">Board: Forest</option>
     </select></div>
     <div class="setting-row"><label for="orientation">Auto board orientation</label><input id="orientation" type="checkbox" checked></div>
+    <div class="setting-row"><label for="soundEnabled">Move sounds</label><input id="soundEnabled" type="checkbox" checked></div>
     <div class="setting-row"><label for="graphics">Graphics quality</label><select id="graphics"><option value="standard">Standard</option><option value="low">Low</option><option value="high">High</option></select></div>
   </details>
   <div class="row">
@@ -236,12 +243,15 @@ themeSelect.onchange = () => {
   try { localStorage.setItem('chessBoardTheme', themeSelect.value); } catch(e) {}
   render();
 };
+const soundToggle = $('soundEnabled');
+try { soundToggle.checked = localStorage.getItem('chessSounds') !== 'false'; } catch(e) {}
+soundToggle.onchange = () => { try { localStorage.setItem('chessSounds', soundToggle.checked); } catch(e) {} };
 const G = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟', k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
 const V = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
 const dN = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
 const dK = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
 const RT = { 0: 'q', 4: 'kq', 7: 'k', 56: 'Q', 60: 'KQ', 63: 'K' };
-let s, hist, sel, last, busy, me = 'w', tm;
+let s, hist, sel, last, busy, me = 'w', tm, resultRecorded = false;
 const ai = () => 'emh'.includes($('mode').value);
 const on = () => $('mode').value === 'o';
 const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-';
@@ -360,10 +370,55 @@ function aiMove() {
   if (best) doMove(best);
 }
 
+function playMoveSound(capture = false, check = false) {
+  if (!soundToggle.checked) return;
+  try {
+    const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+    const ctx = new C(), osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = check ? 740 : capture ? 520 : 390;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.07, ctx.currentTime + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.13);
+    osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.14);
+    osc.onended = () => ctx.close();
+  } catch(e) {}
+}
+function updateCaptured() {
+  let pos = newBoard(), white = [], black = [];
+  for (let i = 0; i + 1 < mv.length; i += 2) {
+    const from = A.indexOf(mv[i]), to = A.indexOf(mv[i + 1]);
+    const m = legal(pos).find(x => x.from === from && x.to === to); if (!m) break;
+    const taken = m.ep ? (pos.turn === 'w' ? 'p' : 'P') : pos.b[to];
+    if (taken) (pos.turn === 'w' ? white : black).push(taken);
+    pos = apply(pos, m);
+  }
+  const order = 'qrbnp';
+  const fmt = a => a.sort((x,y) => order.indexOf(y.toLowerCase()) - order.indexOf(x.toLowerCase())).map(p => G[p]).join(' ') || '—';
+  $('whiteCaptured').innerHTML = '<span class="cap-label">WHITE TAKES</span>' + fmt(white);
+  $('blackCaptured').innerHTML = '<span class="cap-label">BLACK TAKES</span>' + fmt(black);
+}
+function updateStats() {
+  let v = {w:0,l:0,d:0};
+  try { v = JSON.parse(localStorage.getItem('chessLocalStats') || '{"w":0,"l":0,"d":0}'); } catch(e) {}
+  $('stats').textContent = 'Local record: ' + (v.w||0) + ' wins · ' + (v.l||0) + ' losses · ' + (v.d||0) + ' draws';
+}
+function recordResult(check) {
+  if (resultRecorded) return;
+  resultRecorded = true;
+  let v = {w:0,l:0,d:0};
+  try { v = JSON.parse(localStorage.getItem('chessLocalStats') || '{"w":0,"l":0,"d":0}'); } catch(e) {}
+  if (!check) v.d = (v.d||0) + 1;
+  else if (s.turn !== me) v.w = (v.w||0) + 1;
+  else v.l = (v.l||0) + 1;
+  try { localStorage.setItem('chessLocalStats', JSON.stringify(v)); } catch(e) {}
+  updateStats();
+}
 function doMove(m) {
+  const wasCapture = !!s.b[m.to] || !!m.ep;
   const pieceStartRect = board.querySelector('.sq[data-i="' + m.from + '"] span')?.getBoundingClientRect() || null;
   hist.push({ s, last, mv });
   s = apply(s, m); last = [m.from, m.to]; sel = -1; mv += A[m.from] + A[m.to]; if (on() && room) push(m);
+  playMoveSound(wasCapture, inChk(s.b, s.turn));
   render(pieceStartRect);
   if (ai() && s.turn !== me && legal(s).length) { busy = true; tm = setTimeout(aiMove, 60); }
 }
@@ -382,6 +437,7 @@ function lab(r, c) {
   return o;
 }
 function render(pieceStartRect = null) {
+  updateCaptured(); updateStats();
   const L = legal(s), chk = inChk(s.b, s.turn), ks = chk ? s.b.indexOf(s.turn === 'w' ? 'K' : 'k') : -1;
   const tg = new Set(L.filter(m => m.from === sel).map(m => m.to));
   let h = '';
@@ -405,6 +461,7 @@ function render(pieceStartRect = null) {
   $('moveList').innerHTML = pairs.length ? pairs.map((p,i) => '<div class="move-pair"><span class="move-no">' + (i+1) + '.</span><span>' + p.white + '</span><span>' + p.black + '</span></div>').join('') : '<span>Belum ada langkah.</span>';
 
   if (!L.length) {
+    recordResult(chk);
     const title = chk ? (s.turn === 'w' ? 'WHITE LOSES' : 'BLACK LOSES') : 'DRAW';
     const subtitle = chk ? (s.turn === 'w' ? 'Black wins — Checkmate!' : 'White wins — Checkmate!') : 'Stalemate';
     h += `<div id="resultOverlay" role="status" aria-live="assertive"><div class="result-title">${title}</div><div class="result-sub">${subtitle}</div></div>`;
@@ -444,6 +501,7 @@ board.onclick = e => {
 };
 
 function init() {
+  resultRecorded = false;
   const back = 'rnbqkbnr'.split(''), front = 'RNBQKBNR'.split('');
   s = { b: [...back, ...Array(8).fill('p'), ...Array(32).fill(''), ...Array(8).fill('P'), ...front], turn: 'w', r: 'KQkq', ep: -1 };
   clearTimeout(tm); mv = ''; me = $('side').value; hist = []; sel = -1; last = null; busy = false;
@@ -494,7 +552,9 @@ function recv(d) {
   const m = legal(s).find(x => x.from === from && x.to === to);
   if (!m) { if (room && room.open) room.send({ g: g, req: true }); return; }
   hist.push({ s, last, mv });
-  s = apply(s, m); last = [from, to]; mv += d.f; sel = -1; render();
+  const wasCapture = !!s.b[to] || !!m.ep;
+  s = apply(s, m); last = [from, to]; mv += d.f; sel = -1;
+  playMoveSound(wasCapture, inChk(s.b, s.turn)); render();
 }
 function bind(c) {
   room = c;
@@ -509,7 +569,7 @@ function leaveRoom() {
   try { if (peer) peer.destroy(); } catch (e) {}
   room = null; peer = null;
 }
-function resetBoard() { s = newBoard(); hist = []; last = null; sel = -1; mv = ''; g = 0; }
+function resetBoard() { resultRecorded = false; s = newBoard(); hist = []; last = null; sel = -1; mv = ''; g = 0; }
 function host(tries) {
   leaveRoom(); resetBoard(); me = 'w';
   const al = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = '';
