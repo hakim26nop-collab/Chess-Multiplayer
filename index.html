@@ -388,9 +388,9 @@ function evalS(s) {
   return s.turn === 'w' ? v : -v;
 }
 function search(s, d, a, b) {
-  if (d === 0) return evalS(s);
   const L = legal(s);
   if (!L.length) return inChk(s.b, s.turn) ? -1e5 - d : 0;
+  if (d === 0) return evalS(s);
   L.sort((x, y) => (s.b[y.to] ? 1 : 0) - (s.b[x.to] ? 1 : 0));
   for (const m of L) {
     const v = -search(apply(s, m), d - 1, -b, -a);
