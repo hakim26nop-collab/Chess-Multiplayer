@@ -629,7 +629,7 @@ function setOl(t) { $('olm').textContent = t; }
 function peerErrorText(e) { const t=e&&e.type||'unknown'; return ({'peer-unavailable':'Room tidak ditemukan. Pastikan teman sudah membuat game dan kode benar.','network':'Jaringan ke server koneksi terputus. Periksa internet lalu coba lagi.','server-error':'Server koneksi sedang bermasalah. Coba lagi beberapa saat.','socket-error':'Koneksi ke server gagal. Periksa jaringan atau coba jaringan lain.','socket-closed':'Server koneksi menutup sambungan. Coba buat room baru.','browser-incompatible':'Browser ini tidak mendukung koneksi P2P. Gunakan Chrome versi terbaru.','webrtc':'Negosiasi koneksi antarperangkat gagal. Coba jaringan lain.'})[t] || ('Koneksi gagal ('+t+'). Coba lagi.'); }
 function push(m){if(!room||!room.open)return;if(m)room.send({g:g,n:mv.length/2,f:A[m.from]+A[m.to],p:m.promotion||'',q:moveGrades[moveGrades.length-1]||'unrated'});else room.send({g:g,m:mv,p:promos.slice(),q:moveGrades.slice()});}
 const newBoard = () => ({ b: [...'rnbqkbnr'.split(''), ...Array(8).fill('p'), ...Array(32).fill(''), ...Array(8).fill('P'), ...'RNBQKBNR'.split('')], turn: 'w', r: 'KQkq', ep: -1 });
-function rebuild(str,plist=[],grades=[]){s=newBoard();hist=[];last=null;mv='';sanMoves=[];promos=[];moveGrades=[];for(let i=0;i+1<str.length;i+=2){const f=A.indexOf(str[i]),t=A.indexOf(str[i+1]),m=legal(s).find(x=>x.from===f&&x.to===t);if(!m)break;m.promotion=plist[i/2]||'';const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice(),moveGrades:moveGrades.slice(),moveReactions:moveReactions.slice()});s=apply(s,m);last=[f,t];mv+=str[i]+str[i+1];sanMoves.push(san);promos.push(m.promotion||'');moveGrades.push(QUALITY_INFO[grades[i/2]]?grades[i/2]:'unrated');}sel=-1;gameOver=false;resultRecorded=false;pgnResult='*';render();}
+function rebuild(str,plist=[],grades=[]){s=newBoard();hist=[];last=null;mv='';sanMoves=[];promos=[];moveGrades=[];for(let i=0;i+1<str.length;i+=2){const f=A.indexOf(str[i]),t=A.indexOf(str[i+1]),m=legal(s).find(x=>x.from===f&&x.to===t);if(!m)break;m.promotion=plist[i/2]||'';const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice(),moveGrades:moveGrades.slice()});s=apply(s,m);last=[f,t];mv+=str[i]+str[i+1];sanMoves.push(san);promos.push(m.promotion||'');moveGrades.push(QUALITY_INFO[grades[i/2]]?grades[i/2]:'unrated');}sel=-1;gameOver=false;resultRecorded=false;pgnResult='*';render();}
 function olStatus(t) { setOl('Room: ' + rc + ' \u00b7 You: ' + (me === 'w' ? 'White' : 'Black') + ' \u00b7 ' + t); }
 function recv(d) {
   if (!d || typeof d !== 'object') return;
@@ -660,7 +660,7 @@ function recv(d) {
   if (!m) { if (room && room.open) room.send({ g: g, req: true }); return; }
   if(m.promo)m.promotion=['q','r','b','n'].includes(d.p)?d.p:'q';
   const quality=QUALITY_INFO[d.q]?d.q:reviewMove(s,m);
-  const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice(),moveGrades:moveGrades.slice(),moveReactions:moveReactions.slice()});
+  const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice(),moveGrades:moveGrades.slice()});
   const wasCapture = !!s.b[to] || !!m.ep;
   s = apply(s, m); last = [from, to]; mv += d.f;sanMoves.push(san);promos.push(m.promotion||'');moveGrades.push(quality);sel=-1;
   playMoveSound(wasCapture, inChk(s.b, s.turn)); render();
