@@ -349,7 +349,7 @@ function gen(s) {
   return out;
 }
 
-function positionKey(st) { return st.b.join('')+'|'+st.turn+'|'+st.r+'|'+st.ep; }
+function positionKey(st) { const ep = st.ep >= 0 && legal(st).some(m => m.ep) ? st.ep : -1; return st.b.join('')+'|'+st.turn+'|'+st.r+'|'+ep; }
 function toSAN(st,m){
  const p=st.b[m.from],k=p.toLowerCase(),capture=!!st.b[m.to]||!!m.ep;
  const file='abcdefgh'[m.from&7],rank=8-(m.from>>3),dest='abcdefgh'[m.to&7]+(8-(m.to>>3));let out='';
