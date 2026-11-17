@@ -43,6 +43,7 @@ h1{font-size:clamp(18px,4vw,22px);margin:0}#topbar{display:flex;align-items:cent
 #matchTools #exportPgn{grid-column:1/-1}
 #ol{width:100%;max-width:var(--bs)}
 #ol .row{display:grid;grid-template-columns:1fr minmax(70px,1fr) 1fr}
+#ol #inviteActions{display:grid;grid-template-columns:1fr;margin-top:6px}#ol #inviteActions[hidden]{display:none}#ol #inviteActions button{grid-column:1/-1;width:100%}
 @media(min-width:700px){#matchTools{grid-template-columns:repeat(4,minmax(0,1fr))}#matchTools #exportPgn{grid-column:auto}}
 @media(max-width:420px){#gameSetup,#primaryActions,#matchTools{gap:6px}#matchTools button{font-size:12px;padding:9px 4px}}
 #moveHistory{width:100%;max-width:var(--bs);background:var(--card);color:var(--text);border-radius:12px;padding:9px 12px;box-shadow:0 1px 6px rgba(0,0,0,.12);font-size:13px}
@@ -180,7 +181,8 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
       <input id="code" placeholder="Room code" maxlength="8" autocapitalize="characters" autocomplete="off">
       <button id="jn" class="alt">Join</button>
     </div>
-    <div id="olm">Create a game and share the room code, or enter a friend’s code. No account required.</div>
+    <div class="row" id="inviteActions" hidden><button id="shareInvite" class="alt" type="button">Share Invite Link</button></div>
+    <div id="olm">Create a game, then share the invite link with a classmate. They can open it to join automatically. No account required.</div>
   </div>
   <details id="settings">
     <summary>⚙️ Settings</summary>
@@ -613,17 +615,17 @@ function host(tries) {
   leaveRoom(); resetBoard(); me = 'w';
   const al = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = '';
   for (let i = 0; i < 6; i++) c += al[Math.floor(Math.random() * al.length)];
-  rc = c; render();
+  rc = c; render(); $('inviteActions').hidden = true;
   if (!window.Peer) return setOl('Library PeerJS gagal dimuat. Periksa koneksi internet.');
   setOl('Creating game...');
   peer = new Peer('catur-' + c.toLowerCase(), peerOptions);
-  peer.on('open', () => olStatus('Room siap. Bagikan kode ini ke teman: ' + rc));
+  peer.on('open', () => { $('inviteActions').hidden = false; olStatus('Room siap. Tekan Share Invite Link untuk mengundang teman.'); });
   peer.on('connection', conn => { if (room && room.open) { conn.close(); return; } bind(conn); });
   peer.on('disconnected', () => { if (peer && !peer.destroyed) { setOl('Server sinyal terputus. Mencoba menyambung kembali…'); try { peer.reconnect(); } catch(e) {} } });
   peer.on('error', e => { if (e.type === 'unavailable-id' && tries < 5) host(tries + 1); else setOl('Gagal membuat game: ' + peerErrorText(e)); });
 }
 function join(code) {
-  leaveRoom(); resetBoard(); me = 'b'; rc = code; render();
+  leaveRoom(); resetBoard(); me = 'b'; rc = code; render(); $('inviteActions').hidden = true;
   if (!window.Peer) return setOl('Library PeerJS gagal dimuat. Periksa koneksi internet.');
   setOl('Connecting...');
   peer = new Peer(peerOptions);
@@ -649,6 +651,19 @@ function modeChange() {
   init();
 }
 $('mk').onclick = () => host(0);
+$('shareInvite').onclick = async () => {
+  if (!rc || me !== 'w') return setOl('Create a game first.');
+  const invite = new URL(window.location.href);
+  invite.searchParams.set('room', rc);
+  const inviteUrl = invite.href;
+  const shareData = { title: 'Chess Multiplayer', text: 'Join my chess match. Open this link to connect:', url: inviteUrl };
+  if (navigator.share) {
+    try { await navigator.share(shareData); setOl('Invite link shared.'); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(inviteUrl); setOl('Invite link copied. Send it to your classmate.'); }
+  catch (e) { window.prompt('Copy this invite link:', inviteUrl); }
+};
 $('jn').onclick = () => {
   const c = $('code').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (c.length < 4) return setOl('Enter your friend’s room code.');
@@ -660,6 +675,16 @@ $('drawOffer').onclick=()=>{if(gameOver||!mv.length)return;if(on()){if(room&&roo
 $('claimDraw').onclick=()=>{if(gameOver)return;if(repetitionCount(s)>=3||(s.halfmove||0)>=100){if(on()&&room&&room.open)room.send({type:'draw-claim'});finishRemoteResult('DRAW',false,null);}else alert('A draw cannot be claimed yet. Threefold repetition or 50 moves without a pawn move or capture is required.');};
 $('exportPgn').onclick=()=>{const sq=i=>'abcdefgh'[i&7]+(8-(i>>3));const a=[];for(let i=0;i+1<mv.length;i+=2)a.push(sq(A.indexOf(mv[i]))+sq(A.indexOf(mv[i+1])));const out=[];for(let i=0;i<a.length;i+=2)out.push((Math.floor(i/2)+1)+'. '+a[i]+(a[i+1]?' '+a[i+1]:''));const finalResult=pgnResult;const tags=['[Event "Chess Multiplayer"]','[Site "Chess Multiplayer"]','[Date "'+new Date().toISOString().slice(0,10).replace(/-/g,'.')+'"]','[Round "-"]','[White "White"]','[Black "Black"]','[Result "'+finalResult+'"]'];const body=sanMoves.map((m,i)=>(i%2===0?(Math.floor(i/2)+1)+'. ':'')+m).join(' ');const blob=new Blob([tags.join('\n')+'\n\n'+body+' '+finalResult],{type:'application/x-chess-pgn'});const url=URL.createObjectURL(blob),el=document.createElement('a');el.href=url;el.download='chess-game.pgn';el.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 init();
+// A shared invite URL contains ?room=CODE. Switch to Online mode and join it automatically.
+try {
+  const inviteCode = (new URLSearchParams(window.location.search).get('room') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (inviteCode.length >= 4 && inviteCode.length <= 8) {
+    $('mode').value = 'o';
+    modeChange();
+    $('code').value = inviteCode;
+    join(inviteCode);
+  }
+} catch (e) {}
 </script>
 </body>
 </html>
