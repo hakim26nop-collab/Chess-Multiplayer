@@ -687,13 +687,17 @@ function recv(d) {
 }
 function bind(c) {
   room = c;
-  if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; }
   const up = () => { if (room !== c) return; if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; } olStatus('Connected ✓ You can play now'); push(); render(); };
   if (c.open) up(); else c.on('open', up);
   c.on('data', recv);
   c.on('close', () => { busy=false; if (room === c) room = null; if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; } olStatus('Connection closed. Create or join a room again.'); });
   c.on('error', e => olStatus('Data connection error: '+(e&&e.type||'unknown')+'. Try again.'));
-  if (!c.open) onlineTimer = setTimeout(() => { if (room === c && !c.open) olStatus('Masih menghubungkan… Jika lebih dari 20 detik, coba kedua pemain ganti jaringan atau buat room baru.'); }, 20000);
+  if (!c.open && !onlineTimer) onlineTimer = setTimeout(() => {
+    if (room !== c || c.open) return;
+    leaveRoom();
+    setOl('Koneksi belum berhasil setelah 20 detik. Minta teman membuat room baru, lalu masukkan kode terbaru dan tekan Join.');
+    $('code').focus();
+  }, 20000);
 }
 function leaveRoom() {
   try { if (room) room.close(); } catch (e) {}
