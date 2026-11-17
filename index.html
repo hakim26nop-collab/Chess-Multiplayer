@@ -690,7 +690,13 @@ function bind(c) {
   const up = () => { if (room !== c) return; if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; } olStatus('Connected ✓ You can play now'); push(); render(); };
   if (c.open) up(); else c.on('open', up);
   c.on('data', recv);
-  c.on('close', () => { busy=false; if (room === c) room = null; if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; } olStatus('Connection closed. Create or join a room again.'); });
+  c.on('close', () => {
+    // Ignore late close events from a connection already replaced or timed out.
+    if (room !== c) return;
+    busy=false; room = null;
+    if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; }
+    olStatus('Connection closed. Create or join a room again.');
+  });
   c.on('error', e => olStatus('Data connection error: '+(e&&e.type||'unknown')+'. Try again.'));
   if (!c.open && !onlineTimer) onlineTimer = setTimeout(() => {
     if (room !== c || c.open) return;
