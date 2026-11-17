@@ -718,15 +718,24 @@ function host(tries) {
 function join(code) {
   leaveRoom(); resetBoard(); me = 'b'; rc = code; render(); $('inviteActions').hidden = true;
   if (!window.Peer) return setOl('Library PeerJS gagal dimuat. Periksa koneksi internet.');
-  setOl('Connecting...');
+  setOl('Menghubungkan ke server dan room ' + code + '…');
   peer = new Peer(peerOptions);
+  const joiningPeer = peer;
+  // Batas waktu mencakup tahap server sinyal maupun koneksi data ke host.
+  onlineTimer = setTimeout(() => {
+    if (peer !== joiningPeer || (room && room.open)) return;
+    leaveRoom();
+    setOl('Belum terhubung setelah 20 detik. Minta teman membuat room BARU, masukkan kode terbaru, lalu tekan Join.');
+    $('code').focus();
+  }, 20000);
   peer.on('open', () => {
+    if (peer !== joiningPeer) return;
     olStatus('Server siap. Menghubungi room ' + code + '…');
     const c = peer.connect('catur-' + code.toLowerCase(), { reliable: true, serialization: 'json' });
     bind(c);
   });
-  peer.on('disconnected', () => { if (peer && !peer.destroyed) { setOl('Server sinyal terputus. Mencoba menyambung kembali…'); try { peer.reconnect(); } catch(e) {} } });
-  peer.on('error', e => setOl('Gagal terhubung: ' + peerErrorText(e)));
+  peer.on('disconnected', () => { if (peer === joiningPeer && !peer.destroyed) { setOl('Server sinyal terputus. Mencoba menyambung kembali…'); try { peer.reconnect(); } catch(e) {} } });
+  peer.on('error', e => { if (peer === joiningPeer) setOl('Gagal terhubung: ' + peerErrorText(e)); });
 }
 function newGame() {
   if (on() && room) { g++; resetBoard2(); render(); push(); }
