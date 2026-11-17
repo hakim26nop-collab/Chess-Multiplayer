@@ -34,7 +34,7 @@
 html{min-height:100%;margin:0}
 body{min-height:100svh;min-height:100dvh;margin:0;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;overflow-x:hidden}
 .wrap{width:min(100%,var(--bs));display:flex;flex-direction:column;gap:12px;margin:auto}
-h1{font-size:clamp(18px,4vw,22px);margin:0}#topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}#fullscreen{flex:0 0 auto;padding:10px 13px;font-size:14px}
+h1{font-size:clamp(18px,4vw,22px);margin:0}.top-actions{display:flex;align-items:center;gap:7px}#topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}#fullscreen,#installApp{flex:0 0 auto;padding:10px 11px;font-size:13px}
 .wrap:fullscreen{width:100%;height:100%;max-width:none;--bs:min(92vw,68vh,720px);gap:10px;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));overflow:auto;background:var(--bg);color:var(--text);justify-content:center}
 .wrap:fullscreen #board{width:var(--bs);height:var(--bs)}
 .wrap.pseudo-fullscreen{position:fixed;inset:0;z-index:9999;width:100vw;height:100vh;height:100dvh;max-width:none;--bs:min(92vw,60vh,720px);padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));overflow:auto;justify-content:center;background:var(--bg)}
@@ -175,7 +175,7 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
 </head>
 <body>
 <div class="wrap" id="wrap">
-  <div id="topbar"><h1>♟ Chess</h1><button id="fullscreen" class="alt" type="button">⛶ Fullscreen</button></div>
+  <div id="topbar"><h1>♟ Chess</h1><div class="top-actions"><button id="installApp" class="alt" type="button">↓ Install App</button><button id="fullscreen" class="alt" type="button">⛶ Fullscreen</button></div></div>
   <div id="status"></div>
   <div id="board"></div>
   <div id="captured" aria-label="Captured pieces"><div class="side" id="whiteCaptured"><span class="cap-label">WHITE TAKES</span></div><div class="side" id="blackCaptured"><span class="cap-label">BLACK TAKES</span></div></div>
@@ -776,6 +776,35 @@ try {
     join(inviteCode);
   }
 } catch (e) {}
+
+/* PWA install prompt and offline support */
+let deferredInstallPrompt = null;
+const installButton = $('installApp');
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  installButton.hidden = true;
+  $('status').textContent = 'Chess Multiplayer berhasil dipasang.';
+});
+installButton.addEventListener('click', async () => {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+  } else {
+    $('status').textContent = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+      ? 'Untuk memasang: tekan Share, lalu pilih Add to Home Screen.'
+      : 'Jika opsi instal belum muncul, buka menu browser (⋮), lalu pilih Install app atau Add to Home screen.';
+  }
+});
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(() => {
+    $('status').textContent = 'Mode offline belum aktif. Coba muat ulang saat internet stabil.';
+  }));
+}
 </script>
 </body>
 </html>
