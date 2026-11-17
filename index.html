@@ -63,7 +63,7 @@ h1{font-size:clamp(18px,4vw,22px);margin:0}#topbar{display:flex;align-items:cent
 .move-quality{display:inline-flex;align-items:center;gap:3px;margin-left:4px;padding:2px 5px;border-radius:5px;font-size:10px;font-weight:800;line-height:1.3;white-space:nowrap}
 .grade-brilliant{background:#d9f3ff;color:#075985}.grade-great{background:#e7ddff;color:#5b21b6}.grade-best{background:#d9f4df;color:#166534}.grade-excellent{background:#e4f3dc;color:#3f6212}.grade-good{background:#e8edf2;color:#334155}.grade-inaccuracy{background:#fff1c2;color:#854d0e}.grade-mistake{background:#ffe2c7;color:#9a3412}.grade-blunder{background:#ffdada;color:#991b1b}.grade-forced{background:#e5e7eb;color:#374151}.grade-unrated{background:var(--card);color:var(--muted)}
 #moveReviewLegend{display:flex;flex-wrap:wrap;gap:5px 9px;margin-top:8px;color:var(--muted);font-size:10px}
-#moveReviewLegend span{white-space:nowrap}
+#moveReviewLegend span{white-space:nowrap}.move-reaction{margin-left:4px;max-width:55px;padding:2px;border:1px solid rgba(127,127,127,.35);border-radius:5px;background:var(--card);color:var(--text);font-size:10px;font-weight:800}
 .move-pair{display:flex;gap:8px;padding:3px 5px;border-bottom:1px solid rgba(127,127,127,.18)}
 .move-no{color:var(--muted);min-width:22px}
 .wrap:fullscreen #moveHistory,.wrap.pseudo-fullscreen #moveHistory{display:none!important}
@@ -284,7 +284,7 @@ let s, hist, sel, last, busy, me = 'w', tm, resultRecorded = false, gameOver = f
 const ai = () => 'emh'.includes($('mode').value);
 const on = () => $('mode').value === 'o';
 const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-';
-let mv = '', sanMoves = [], promos = [], moveGrades = [], pgnResult='*', room = null, rc = '', g = 0, unsub = null, ready = false;
+let mv = '', sanMoves = [], promos = [], moveGrades = [], moveReactions = [], pgnResult='*', room = null, rc = '', g = 0, unsub = null, ready = false;
 const isW = p => p === p.toUpperCase();
 
 function attacked(b, sq, by) {
@@ -452,6 +452,7 @@ function reviewMove(st, played) {
     return 'blunder';
   } catch(e) { return 'unrated'; }
 }
+function reactionControl(index,mark) { const opts=['','!!','!','★','!?','?!','?','??']; return '<select class="move-reaction" data-reaction-index="'+index+'" title="Manual reaction">'+opts.map(v=>'<option value="'+v+'"'+(v===mark?' selected':'')+'>'+(v||'—')+'</option>').join('')+'</select>'; }
 function qualityBadge(grade) {
   const q=QUALITY_INFO[grade]||QUALITY_INFO.unrated;
   return '<span class="move-quality grade-'+q.css+'" title="'+q.label+'">'+(q.mark?q.mark+' ':'')+q.label+'</span>';
@@ -514,7 +515,7 @@ function doMove(m) {
   const wasCapture = !!s.b[m.to] || !!m.ep;
   const pieceStartRect = board.querySelector('.sq[data-i="' + m.from + '"] span')?.getBoundingClientRect() || null;
   const quality=reviewMove(s,m);
-  const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice(),moveGrades:moveGrades.slice()});s=apply(s,m);last=[m.from,m.to];sel=-1;mv+=A[m.from]+A[m.to];sanMoves.push(san);promos.push(m.promotion||'');moveGrades.push(quality);if(on()&&room)push(m);
+  const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice(),moveGrades:moveGrades.slice(),moveReactions:moveReactions.slice()});s=apply(s,m);last=[m.from,m.to];sel=-1;mv+=A[m.from]+A[m.to];sanMoves.push(san);promos.push(m.promotion||'');moveGrades.push(quality);if(on()&&room)push(m);
   playMoveSound(wasCapture, inChk(s.b, s.turn));
   render(pieceStartRect);
   if (ai() && s.turn !== me && legal(s).length) { busy = true; tm = setTimeout(aiMove, 60); }
@@ -553,10 +554,10 @@ function render(pieceStartRect = null) {
     const f2 = A.indexOf(mv[n + 2]), t2 = A.indexOf(mv[n + 3]);
     const sq = i => 'abcdefgh'[i & 7] + (8 - (i >> 3));
     const wi=n/2, bi=wi+1;
-    pairs.push({ white: sq(from) + '–' + sq(to), black: n + 3 < mv.length ? sq(f2) + '–' + sq(t2) : '', wq:moveGrades[wi]||'unrated', bq:moveGrades[bi]||'unrated' });
+    pairs.push({ white: sq(from) + '–' + sq(to), black: n + 3 < mv.length ? sq(f2) + '–' + sq(t2) : '', wq:moveGrades[wi]||'unrated', bq:moveGrades[bi]||'unrated', wi, bi });
   }
   $('moveCount').textContent = '(' + mv.length / 2 + ')';
-  $('moveList').innerHTML = pairs.length ? pairs.map((p,i) => '<div class="move-pair"><span class="move-no">' + (i+1) + '.</span><span>' + p.white + qualityBadge(p.wq) + '</span><span>' + p.black + (p.black?qualityBadge(p.bq):'') + '</span></div>').join('') : '<span>No moves yet.</span>';
+  $('moveList').innerHTML = pairs.length ? pairs.map((p,i) => '<div class="move-pair"><span class="move-no">' + (i+1) + '.</span><span>' + p.white + qualityBadge(p.wq) + reactionControl(p.wi,moveReactions[p.wi]||'') + '</span><span>' + p.black + (p.black?qualityBadge(p.bq)+reactionControl(p.bi,moveReactions[p.bi]||''):'') + '</span></div>').join('') : '<span>No moves yet.</span>';
 
   if (!L.length || draw) {
     gameOver=true; pgnResult=(draw||!chk)?'1/2-1/2':(s.turn==='w'?'0-1':'1-0'); if(!resultRecorded)recordResult(chk&&!draw);
@@ -602,7 +603,7 @@ function init() {
   resultRecorded = false; gameOver=false; pgnResult='*';
   const back = 'rnbqkbnr'.split(''), front = 'RNBQKBNR'.split('');
   s = { b: [...back, ...Array(8).fill('p'), ...Array(32).fill(''), ...Array(8).fill('P'), ...front], turn: 'w', r: 'KQkq', ep: -1 };
-  clearTimeout(tm); mv = ''; sanMoves=[]; promos=[]; moveGrades=[]; me = $('side').value; hist = []; sel = -1; last = null; busy = false;
+  clearTimeout(tm); mv = ''; sanMoves=[]; promos=[]; moveGrades=[]; moveReactions=[]; me = $('side').value; hist = []; sel = -1; last = null; busy = false;
   if (ai() && me === 'b') { busy = true; tm = setTimeout(aiMove, 500); }
   render();
 }
@@ -611,7 +612,7 @@ $('mode').onchange = modeChange;
 $('side').onchange = init;
 $('undo').onclick = () => {
   if (busy || !hist.length) return;
-  do { const h = hist.pop(); s = h.s; last = h.last; mv = h.mv || ''; sanMoves=h.sanMoves||[];promos=h.promos||[];moveGrades=h.moveGrades||[]; } while (ai() && s.turn !== me && hist.length);
+  do { const h = hist.pop(); s = h.s; last = h.last; mv = h.mv || ''; sanMoves=h.sanMoves||[];promos=h.promos||[];moveGrades=h.moveGrades||[]; moveReactions=h.moveReactions||[]; } while (ai() && s.turn !== me && hist.length);
   resultRecorded = false;
   gameOver = false;
   pgnResult = '*';
@@ -624,12 +625,14 @@ let peer = null, onlineTimer = null;
 const peerOptions = { host: '0.peerjs.com', port: 443, path: '/', secure: true, debug: 1, config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }], sdpSemantics: 'unified-plan' } };
 function setOl(t) { $('olm').textContent = t; }
 function peerErrorText(e) { const t=e&&e.type||'unknown'; return ({'peer-unavailable':'Room tidak ditemukan. Pastikan teman sudah membuat game dan kode benar.','network':'Jaringan ke server koneksi terputus. Periksa internet lalu coba lagi.','server-error':'Server koneksi sedang bermasalah. Coba lagi beberapa saat.','socket-error':'Koneksi ke server gagal. Periksa jaringan atau coba jaringan lain.','socket-closed':'Server koneksi menutup sambungan. Coba buat room baru.','browser-incompatible':'Browser ini tidak mendukung koneksi P2P. Gunakan Chrome versi terbaru.','webrtc':'Negosiasi koneksi antarperangkat gagal. Coba jaringan lain.'})[t] || ('Koneksi gagal ('+t+'). Coba lagi.'); }
-function push(m){if(!room||!room.open)return;if(m)room.send({g:g,n:mv.length/2,f:A[m.from]+A[m.to],p:m.promotion||'',q:moveGrades[moveGrades.length-1]||'unrated'});else room.send({g:g,m:mv,p:promos.slice(),q:moveGrades.slice()});}
+function push(m){if(!room||!room.open)return;if(m)room.send({g:g,n:mv.length/2,f:A[m.from]+A[m.to],p:m.promotion||'',q:moveGrades[moveGrades.length-1]||'unrated'});else room.send({g:g,m:mv,p:promos.slice(),q:moveGrades.slice(),a:moveReactions.slice()});}
 const newBoard = () => ({ b: [...'rnbqkbnr'.split(''), ...Array(8).fill('p'), ...Array(32).fill(''), ...Array(8).fill('P'), ...'RNBQKBNR'.split('')], turn: 'w', r: 'KQkq', ep: -1 });
-function rebuild(str,plist=[],grades=[]){s=newBoard();hist=[];last=null;mv='';sanMoves=[];promos=[];moveGrades=[];for(let i=0;i+1<str.length;i+=2){const f=A.indexOf(str[i]),t=A.indexOf(str[i+1]),m=legal(s).find(x=>x.from===f&&x.to===t);if(!m)break;m.promotion=plist[i/2]||'';const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice(),moveGrades:moveGrades.slice()});s=apply(s,m);last=[f,t];mv+=str[i]+str[i+1];sanMoves.push(san);promos.push(m.promotion||'');moveGrades.push(QUALITY_INFO[grades[i/2]]?grades[i/2]:'unrated');}sel=-1;gameOver=false;resultRecorded=false;pgnResult='*';render();}
+function rebuild(str,plist=[],grades=[],reactions=[]){s=newBoard();hist=[];last=null;mv='';sanMoves=[];promos=[];moveGrades=[];moveReactions=[];for(let i=0;i+1<str.length;i+=2){const f=A.indexOf(str[i]),t=A.indexOf(str[i+1]),m=legal(s).find(x=>x.from===f&&x.to===t);if(!m)break;m.promotion=plist[i/2]||'';const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice(),moveGrades:moveGrades.slice()});s=apply(s,m);last=[f,t];mv+=str[i]+str[i+1];sanMoves.push(san);promos.push(m.promotion||'');moveGrades.push(QUALITY_INFO[grades[i/2]]?grades[i/2]:'unrated');moveReactions.push(['!!','!','★','!?','?!','?','??'].includes(reactions[i/2])?reactions[i/2]:'');}sel=-1;gameOver=false;resultRecorded=false;pgnResult='*';render();}
 function olStatus(t) { setOl('Room: ' + rc + ' \u00b7 You: ' + (me === 'w' ? 'White' : 'Black') + ' \u00b7 ' + t); }
 function recv(d) {
-  if (!d || typeof d !== 'object' || gameOver) return;
+  if (!d || typeof d !== 'object') return;
+  if(d.type==='move-reaction'){if(gameOver||d.g!==g||!Number.isInteger(d.index)||d.index<0||d.index>=moveGrades.length)return;moveReactions[d.index]=['!!','!','★','!?','?!','?','??'].includes(d.mark)?d.mark:'';render();return;}
+  if(gameOver)return;
   const remoteSide = me === 'w' ? 'b' : 'w';
   if(d.type==='resign'){if(d.side!==remoteSide)return;finishRemoteResult((d.side==='w'?'White':'Black')+' resigns',true,d.side==='w'?'b':'w');return;}
   if(d.type==='draw-offer'){if(d.side!==remoteSide)return;if(confirm('Your opponent offers a draw. Accept?')){if(room&&room.open)room.send({type:'draw-accept',side:me});finishRemoteResult('DRAW',false,null);}else if(room&&room.open)room.send({type:'draw-decline',side:me});return;}
@@ -641,7 +644,7 @@ function recv(d) {
   if (d.req) { if (room && room.open) room.send({ g:g, m:mv, p:promos.slice(), q:moveGrades.slice() }); return; }
   const pg = +d.g || 0;
   if (typeof d.m === 'string' && d.m.length <= 2000) {
-    if (pg > g) { g = pg; rebuild(d.m,Array.isArray(d.p)?d.p:[],Array.isArray(d.q)?d.q:[]); }
+    if (pg > g) { g = pg; rebuild(d.m,Array.isArray(d.p)?d.p:[],Array.isArray(d.q)?d.q:[],Array.isArray(d.a)?d.a:[]); }
     else if (pg === g && d.m.length > mv.length && d.m.startsWith(mv)) rebuild(d.m,Array.isArray(d.p)?d.p:[],Array.isArray(d.q)?d.q:[]);
     return;
   }
@@ -677,7 +680,7 @@ function leaveRoom() {
   if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; }
   room = null; peer = null;
 }
-function resetBoard() { clearTimeout(tm); busy=false; resultRecorded = false; gameOver=false; pgnResult='*'; s = newBoard(); hist = []; last = null; sel = -1; mv = '';sanMoves=[];promos=[];moveGrades=[]; g = 0; }
+function resetBoard() { clearTimeout(tm); busy=false; resultRecorded = false; gameOver=false; pgnResult='*'; s = newBoard(); hist = []; last = null; sel = -1; mv = '';sanMoves=[];promos=[];moveGrades=[]; moveReactions=[]; g = 0; }
 function host(tries) {
   leaveRoom(); resetBoard(); me = 'w';
   const al = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = '';
@@ -706,7 +709,8 @@ function join(code) {
 }
 function newGame() {
   if (on() && room) { g++; resetBoard2(); render(); push(); }
-  else init();
+  else $('moveList').addEventListener('change',e=>{const el=e.target;if(!el.matches('[data-reaction-index]'))return;const index=Number(el.dataset.reactionIndex),mark=el.value;if(!Number.isInteger(index)||index<0||index>=moveGrades.length)return;moveReactions[index]=['!!','!','★','!?','?!','?','??'].includes(mark)?mark:'';if(on()&&room&&room.open)room.send({type:'move-reaction',g:g,index:index,mark:moveReactions[index]});render();});
+init();
 }
 function resetBoard2() { const k = g; resetBoard(); g = k; }
 function modeChange() {
@@ -740,7 +744,7 @@ function finishRemoteResult(message,decisive,winner){if(gameOver)return;clearTim
 $('resign').onclick=()=>{if(gameOver||!mv.length)return;const resigning=on()||ai()?me:s.turn;if(!confirm((resigning==='w'?'White':'Black')+' resigns this game?'))return;if(on()&&room&&room.open)room.send({type:'resign',side:resigning});finishRemoteResult((resigning==='w'?'White':'Black')+' resigns',true,resigning==='w'?'b':'w');};
 $('drawOffer').onclick=()=>{if(gameOver||!mv.length)return;if(on()){if(room&&room.open){room.send({type:'draw-offer',side:me});setOl('Draw offer sent.');}else alert('Connect to your opponent first.');}else if($('mode').value==='2'){const offering=s.turn==='w'?'White':'Black',accepting=s.turn==='w'?'Black':'White';if(confirm(offering+' offers a draw. '+accepting+', accept the draw?'))finishRemoteResult('DRAW',false,null);}else alert('Draw offers are available in Local 2-player and Online modes.');};
 $('claimDraw').onclick=()=>{if(gameOver)return;if(repetitionCount(s)>=3||(s.halfmove||0)>=100){if(on()){if(!room||!room.open){alert('Connect to your opponent before claiming a draw.');return;}busy=true;room.send({type:'draw-claim',side:me});setOl('Draw claim sent. Waiting for opponent confirmation.');}else finishRemoteResult('DRAW',false,null);}else alert('A draw cannot be claimed yet. Threefold repetition or 50 moves without a pawn move or capture is required.');};
-$('exportPgn').onclick=()=>{const sq=i=>'abcdefgh'[i&7]+(8-(i>>3));const a=[];for(let i=0;i+1<mv.length;i+=2)a.push(sq(A.indexOf(mv[i]))+sq(A.indexOf(mv[i+1])));const out=[];for(let i=0;i<a.length;i+=2)out.push((Math.floor(i/2)+1)+'. '+a[i]+(a[i+1]?' '+a[i+1]:''));const finalResult=pgnResult;const tags=['[Event "Chess Multiplayer"]','[Site "Chess Multiplayer"]','[Date "'+new Date().toISOString().slice(0,10).replace(/-/g,'.')+'"]','[Round "-"]','[White "White"]','[Black "Black"]','[Result "'+finalResult+'"]'];const qualityMarks={brilliant:'!!',great:'!',best:'★',excellent:'',good:'',inaccuracy:'?!',mistake:'?',blunder:'??',forced:'',unrated:''};const body=sanMoves.map((m,i)=>(i%2===0?(Math.floor(i/2)+1)+'. ':'')+m+(qualityMarks[moveGrades[i]]||'')).join(' ');const blob=new Blob([tags.join('\n')+'\n\n'+body+' '+finalResult],{type:'application/x-chess-pgn'});const url=URL.createObjectURL(blob),el=document.createElement('a');el.href=url;el.download='chess-game.pgn';el.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+$('exportPgn').onclick=()=>{const sq=i=>'abcdefgh'[i&7]+(8-(i>>3));const a=[];for(let i=0;i+1<mv.length;i+=2)a.push(sq(A.indexOf(mv[i]))+sq(A.indexOf(mv[i+1])));const out=[];for(let i=0;i<a.length;i+=2)out.push((Math.floor(i/2)+1)+'. '+a[i]+(a[i+1]?' '+a[i+1]:''));const finalResult=pgnResult;const tags=['[Event "Chess Multiplayer"]','[Site "Chess Multiplayer"]','[Date "'+new Date().toISOString().slice(0,10).replace(/-/g,'.')+'"]','[Round "-"]','[White "White"]','[Black "Black"]','[Result "'+finalResult+'"]'];const qualityMarks={brilliant:'!!',great:'!',best:'★',excellent:'',good:'',inaccuracy:'?!',mistake:'?',blunder:'??',forced:'',unrated:''};const body=sanMoves.map((m,i)=>(i%2===0?(Math.floor(i/2)+1)+'. ':'')+m+(moveReactions[i]||qualityMarks[moveGrades[i]]||'')).join(' ');const blob=new Blob([tags.join('\n')+'\n\n'+body+' '+finalResult],{type:'application/x-chess-pgn'});const url=URL.createObjectURL(blob),el=document.createElement('a');el.href=url;el.download='chess-game.pgn';el.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 init();
 // A shared invite URL contains ?room=CODE. Switch to Online mode and join it automatically.
 try {
