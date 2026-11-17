@@ -484,20 +484,29 @@ function updateCaptured() {
   $('whiteCaptured').innerHTML = '<span class="cap-label">WHITE TAKES</span>' + fmt(white);
   $('blackCaptured').innerHTML = '<span class="cap-label">BLACK TAKES</span>' + fmt(black);
 }
+function readLocalStats() {
+  const out = {w:0,l:0,d:0};
+  try {
+    const value = JSON.parse(localStorage.getItem('chessLocalStats') || '{}');
+    if (value && typeof value === 'object') for (const k of ['w','l','d']) {
+      const n = Number(value[k]); out[k] = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+    }
+  } catch(e) {}
+  return out;
+}
+function saveLocalStats(value) { try { localStorage.setItem('chessLocalStats', JSON.stringify(value)); } catch(e) {} }
 function updateStats() {
-  let v = {w:0,l:0,d:0};
-  try { v = JSON.parse(localStorage.getItem('chessLocalStats') || '{"w":0,"l":0,"d":0}'); } catch(e) {}
-  $('stats').textContent = 'Local record: ' + (v.w||0) + ' wins · ' + (v.l||0) + ' losses · ' + (v.d||0) + ' draws';
+  const v = readLocalStats();
+  $('stats').textContent = 'Local record: ' + v.w + ' wins · ' + v.l + ' losses · ' + v.d + ' draws';
 }
 function recordResult(check) {
   if (resultRecorded) return;
   resultRecorded = true;
-  let v = {w:0,l:0,d:0};
-  try { v = JSON.parse(localStorage.getItem('chessLocalStats') || '{"w":0,"l":0,"d":0}'); } catch(e) {}
-  if (!check) v.d = (v.d||0) + 1;
-  else if (s.turn !== me) v.w = (v.w||0) + 1;
-  else v.l = (v.l||0) + 1;
-  try { localStorage.setItem('chessLocalStats', JSON.stringify(v)); } catch(e) {}
+  const v = readLocalStats();
+  if (!check) v.d++;
+  else if (s.turn !== me) v.w++;
+  else v.l++;
+  saveLocalStats(v);
   updateStats();
 }
 function doMove(m) {
@@ -727,7 +736,7 @@ $('jn').onclick = () => {
   if (c.length < 4) return setOl('Enter your friend’s room code.');
   join(c);
 };
-function finishRemoteResult(message,decisive,winner){if(gameOver)return;clearTimeout(tm);busy=false;gameOver=true;resultRecorded=true;pgnResult=decisive?(winner==='w'?'1-0':'0-1'):'1/2-1/2';let v={w:0,l:0,d:0};try{v=JSON.parse(localStorage.getItem('chessLocalStats')||'{"w":0,"l":0,"d":0}')}catch(e){}if(!decisive)v.d=(v.d||0)+1;else if(winner===me)v.w=(v.w||0)+1;else v.l=(v.l||0)+1;try{localStorage.setItem('chessLocalStats',JSON.stringify(v))}catch(e){}updateStats();board.insertAdjacentHTML('beforeend','<div id="resultOverlay" role="status"><div class="result-title">'+message+'</div><div class="result-sub">Game finished</div></div>');$('status').textContent=message;}
+function finishRemoteResult(message,decisive,winner){if(gameOver)return;clearTimeout(tm);busy=false;gameOver=true;resultRecorded=true;pgnResult=decisive?(winner==='w'?'1-0':'0-1'):'1/2-1/2';const v=readLocalStats();if(!decisive)v.d++;else if(winner===me)v.w++;else v.l++;saveLocalStats(v);updateStats();board.insertAdjacentHTML('beforeend','<div id="resultOverlay" role="status"><div class="result-title">'+message+'</div><div class="result-sub">Game finished</div></div>');$('status').textContent=message;}
 $('resign').onclick=()=>{if(gameOver||!mv.length)return;const resigning=on()||ai()?me:s.turn;if(!confirm((resigning==='w'?'White':'Black')+' resigns this game?'))return;if(on()&&room&&room.open)room.send({type:'resign',side:resigning});finishRemoteResult((resigning==='w'?'White':'Black')+' resigns',true,resigning==='w'?'b':'w');};
 $('drawOffer').onclick=()=>{if(gameOver||!mv.length)return;if(on()){if(room&&room.open){room.send({type:'draw-offer',side:me});setOl('Draw offer sent.');}else alert('Connect to your opponent first.');}else if($('mode').value==='2'){const offering=s.turn==='w'?'White':'Black',accepting=s.turn==='w'?'Black':'White';if(confirm(offering+' offers a draw. '+accepting+', accept the draw?'))finishRemoteResult('DRAW',false,null);}else alert('Draw offers are available in Local 2-player and Online modes.');};
 $('claimDraw').onclick=()=>{if(gameOver)return;if(repetitionCount(s)>=3||(s.halfmove||0)>=100){if(on()){if(!room||!room.open){alert('Connect to your opponent before claiming a draw.');return;}busy=true;room.send({type:'draw-claim',side:me});setOl('Draw claim sent. Waiting for opponent confirmation.');}else finishRemoteResult('DRAW',false,null);}else alert('A draw cannot be claimed yet. Threefold repetition or 50 moves without a pawn move or capture is required.');};
