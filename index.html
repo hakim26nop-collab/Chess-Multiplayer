@@ -621,6 +621,7 @@ function rebuild(str,plist=[],grades=[]){s=newBoard();hist=[];last=null;mv='';sa
 function olStatus(t) { setOl('Room: ' + rc + ' \u00b7 You: ' + (me === 'w' ? 'White' : 'Black') + ' \u00b7 ' + t); }
 function recv(d) {
   if (!d || typeof d !== 'object' || gameOver) return;
+  const remoteSide = me === 'w' ? 'b' : 'w';
   if(d.type==='resign'){if(d.side!==remoteSide)return;finishRemoteResult((d.side==='w'?'White':'Black')+' resigns',true,d.side==='w'?'b':'w');return;}
   if(d.type==='draw-offer'){if(d.side!==remoteSide)return;if(confirm('Your opponent offers a draw. Accept?')){if(room&&room.open)room.send({type:'draw-accept',side:me});finishRemoteResult('DRAW',false,null);}else if(room&&room.open)room.send({type:'draw-decline',side:me});return;}
   if(d.type==='draw-accept'){if(d.side!==remoteSide)return;finishRemoteResult('DRAW',false,null);return;}
