@@ -556,8 +556,10 @@ $('undo').onclick = () => {
   render();
 };
 /* ===== Online lewat PeerJS (WebRTC, tanpa akun) ===== */
-let peer = null;
+let peer = null, onlineTimer = null;
+const peerOptions = { host: '0.peerjs.com', port: 443, path: '/', secure: true, debug: 1, config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }], sdpSemantics: 'unified-plan' } };
 function setOl(t) { $('olm').textContent = t; }
+function peerErrorText(e) { const t=e&&e.type||'unknown'; return ({'peer-unavailable':'Room tidak ditemukan. Pastikan teman sudah membuat game dan kode benar.','network':'Jaringan ke server koneksi terputus. Periksa internet lalu coba lagi.','server-error':'Server koneksi sedang bermasalah. Coba lagi beberapa saat.','socket-error':'Koneksi ke server gagal. Periksa jaringan atau coba jaringan lain.','socket-closed':'Server koneksi menutup sambungan. Coba buat room baru.','browser-incompatible':'Browser ini tidak mendukung koneksi P2P. Gunakan Chrome versi terbaru.','webrtc':'Negosiasi koneksi antarperangkat gagal. Coba jaringan lain.'})[t] || ('Koneksi gagal ('+t+'). Coba lagi.'); }
 function push(m){if(!room||!room.open)return;if(m)room.send({g:g,n:mv.length/2,f:A[m.from]+A[m.to],p:m.promotion||''});else room.send({g:g,m:mv,p:promos.slice()});}
 const newBoard = () => ({ b: [...'rnbqkbnr'.split(''), ...Array(8).fill('p'), ...Array(32).fill(''), ...Array(8).fill('P'), ...'RNBQKBNR'.split('')], turn: 'w', r: 'KQkq', ep: -1 });
 function rebuild(str,plist=[]){s=newBoard();hist=[];last=null;mv='';sanMoves=[];promos=[];for(let i=0;i+1<str.length;i+=2){const f=A.indexOf(str[i]),t=A.indexOf(str[i+1]),m=legal(s).find(x=>x.from===f&&x.to===t);if(!m)break;m.promotion=plist[i/2]||'';const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice()});s=apply(s,m);last=[f,t];mv+=str[i]+str[i+1];sanMoves.push(san);promos.push(m.promotion||'');}sel=-1;gameOver=false;resultRecorded=false;pgnResult='*';render();}
@@ -592,15 +594,18 @@ function recv(d) {
 }
 function bind(c) {
   room = c;
-  const up = () => { olStatus('Opponent connected'); push(); render(); };
+  if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; }
+  const up = () => { if (room !== c) return; if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; } olStatus('Connected ✓ You can play now'); push(); render(); };
   if (c.open) up(); else c.on('open', up);
   c.on('data', recv);
-  c.on('close', () => { room = null; olStatus('Opponent disconnected. Start a new game to continue.'); });
-  c.on('error', () => olStatus('Connection problem'));
+  c.on('close', () => { if (room === c) room = null; if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; } olStatus('Connection closed. Create or join a room again.'); });
+  c.on('error', e => olStatus('Data connection error: '+(e&&e.type||'unknown')+'. Try again.'));
+  if (!c.open) onlineTimer = setTimeout(() => { if (room === c && !c.open) olStatus('Masih menghubungkan… Jika lebih dari 20 detik, coba kedua pemain ganti jaringan atau buat room baru.'); }, 20000);
 }
 function leaveRoom() {
   try { if (room) room.close(); } catch (e) {}
   try { if (peer) peer.destroy(); } catch (e) {}
+  if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; }
   room = null; peer = null;
 }
 function resetBoard() { resultRecorded = false; gameOver=false; pgnResult='*'; s = newBoard(); hist = []; last = null; sel = -1; mv = '';sanMoves=[];promos=[]; g = 0; }
@@ -611,22 +616,24 @@ function host(tries) {
   rc = c; render();
   if (!window.Peer) return setOl('Library PeerJS gagal dimuat. Periksa koneksi internet.');
   setOl('Creating game...');
-  peer = new Peer('catur-' + c.toLowerCase());
-  peer.on('open', () => olStatus('Waiting for opponent...'));
-  peer.on('connection', conn => { if (room) { conn.close(); return; } bind(conn); });
-  peer.on('error', e => { if (e.type === 'unavailable-id' && tries < 5) host(tries + 1); else setOl('Gagal membuat game (' + e.type + '). Coba lagi.'); });
+  peer = new Peer('catur-' + c.toLowerCase(), peerOptions);
+  peer.on('open', () => olStatus('Room siap. Bagikan kode ini ke teman: ' + rc));
+  peer.on('connection', conn => { if (room && room.open) { conn.close(); return; } bind(conn); });
+  peer.on('disconnected', () => { if (peer && !peer.destroyed) { setOl('Server sinyal terputus. Mencoba menyambung kembali…'); try { peer.reconnect(); } catch(e) {} } });
+  peer.on('error', e => { if (e.type === 'unavailable-id' && tries < 5) host(tries + 1); else setOl('Gagal membuat game: ' + peerErrorText(e)); });
 }
 function join(code) {
   leaveRoom(); resetBoard(); me = 'b'; rc = code; render();
   if (!window.Peer) return setOl('Library PeerJS gagal dimuat. Periksa koneksi internet.');
   setOl('Connecting...');
-  peer = new Peer();
+  peer = new Peer(peerOptions);
   peer.on('open', () => {
-    const c = peer.connect('catur-' + code.toLowerCase(), { reliable: true });
+    olStatus('Server siap. Menghubungi room ' + code + '…');
+    const c = peer.connect('catur-' + code.toLowerCase(), { reliable: true, serialization: 'json' });
     bind(c);
-    setTimeout(() => { if (!c.open) olStatus('Belum tersambung. Cek kodenya atau minta teman membuat game dulu.'); }, 9000);
   });
-  peer.on('error', e => setOl(e.type === 'peer-unavailable' ? 'Kode tidak ditemukan. Periksa lagi kodenya.' : 'Gagal terhubung (' + e.type + ').'));
+  peer.on('disconnected', () => { if (peer && !peer.destroyed) { setOl('Server sinyal terputus. Mencoba menyambung kembali…'); try { peer.reconnect(); } catch(e) {} } });
+  peer.on('error', e => setOl('Gagal terhubung: ' + peerErrorText(e)));
 }
 function newGame() {
   if (on() && room) { g++; resetBoard2(); render(); push(); }
