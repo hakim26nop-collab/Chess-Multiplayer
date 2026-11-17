@@ -697,7 +697,14 @@ function bind(c) {
     if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; }
     olStatus('Connection closed. Create or join a room again.');
   });
-  c.on('error', e => olStatus('Data connection error: '+(e&&e.type||'unknown')+'. Try again.'));
+  c.on('error', e => {
+    if (room !== c) return;
+    try { c.close(); } catch (err) {}
+    room = null;
+    if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; }
+    olStatus('Koneksi data gagal ('+(e&&e.type||'unknown')+'). Periksa jaringan, lalu gabung ulang.');
+    $('code').focus();
+  });
   if (!c.open && !onlineTimer) onlineTimer = setTimeout(() => {
     if (room !== c || c.open) return;
     leaveRoom();
@@ -718,12 +725,29 @@ function host(tries) {
   for (let i = 0; i < 6; i++) c += al[Math.floor(Math.random() * al.length)];
   rc = c; render(); $('inviteActions').hidden = true;
   if (!window.Peer) return setOl('Library PeerJS gagal dimuat. Periksa koneksi internet.');
-  setOl('Creating game...');
+  setOl('Membuat room…');
   peer = new Peer('catur-' + c.toLowerCase(), peerOptions);
-  peer.on('open', () => { $('inviteActions').hidden = false; olStatus('Room siap. Tekan Share Invite Link untuk mengundang teman.'); });
-  peer.on('connection', conn => { if (room) { conn.close(); return; } bind(conn); });
-  peer.on('disconnected', () => { if (peer && !peer.destroyed) { setOl('Server sinyal terputus. Mencoba menyambung kembali…'); try { peer.reconnect(); } catch(e) {} } });
-  peer.on('error', e => { if (e.type === 'unavailable-id' && tries < 5) host(tries + 1); else setOl('Gagal membuat game: ' + peerErrorText(e)); });
+  const hostingPeer = peer;
+  onlineTimer = setTimeout(() => {
+    if (peer !== hostingPeer || hostingPeer.open) return;
+    leaveRoom();
+    setOl('Room belum berhasil dibuat setelah 20 detik. Periksa internet, lalu tekan Create Game lagi.');
+  }, 20000);
+  hostingPeer.on('open', () => {
+    if (peer !== hostingPeer) return;
+    if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; }
+    $('inviteActions').hidden = false;
+    olStatus('Room siap. Tekan Share Invite Link untuk mengundang teman.');
+  });
+  hostingPeer.on('connection', conn => { if (peer !== hostingPeer || room) { conn.close(); return; } bind(conn); });
+  hostingPeer.on('disconnected', () => { if (peer === hostingPeer && !hostingPeer.destroyed) { setOl('Server sinyal terputus. Mencoba menyambung kembali…'); try { hostingPeer.reconnect(); } catch(e) {} } });
+  hostingPeer.on('error', e => {
+    if (peer !== hostingPeer) return;
+    if (e.type === 'unavailable-id' && tries < 5) { host(tries + 1); return; }
+    if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; }
+    leaveRoom();
+    setOl('Gagal membuat room: ' + peerErrorText(e));
+  });
 }
 function join(code) {
   leaveRoom(); resetBoard(); me = 'b'; rc = code; render(); $('inviteActions').hidden = true;
@@ -745,7 +769,13 @@ function join(code) {
     bind(c);
   });
   peer.on('disconnected', () => { if (peer === joiningPeer && !peer.destroyed) { setOl('Server sinyal terputus. Mencoba menyambung kembali…'); try { peer.reconnect(); } catch(e) {} } });
-  peer.on('error', e => { if (peer === joiningPeer) setOl('Gagal terhubung: ' + peerErrorText(e)); });
+  peer.on('error', e => {
+    if (peer !== joiningPeer) return;
+    if (onlineTimer) { clearTimeout(onlineTimer); onlineTimer = null; }
+    leaveRoom();
+    setOl('Gagal terhubung: ' + peerErrorText(e));
+    $('code').focus();
+  });
 }
 function newGame() {
   if (on() && room) { g++; resetBoard2(); render(); push(); }
