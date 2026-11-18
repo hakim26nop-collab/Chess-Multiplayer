@@ -222,6 +222,34 @@ button,select,input{min-width:0}
 @media(min-width:700px){
  #matchTools{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
+
+/* Fullscreen quick access: settings and character conversation */
+.fullscreen-tools{display:none}
+.wrap:fullscreen #settings[open],.wrap.pseudo-fullscreen #settings[open]{
+  display:block!important;position:fixed!important;z-index:10002;
+  top:max(58px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));
+  width:min(340px,calc(100vw - 20px));max-height:min(70dvh,520px);
+  overflow:auto;margin:0!important;box-shadow:0 8px 30px rgba(0,0,0,.35);
+}
+.wrap:fullscreen #opponentChat.fs-chat-open,.wrap.pseudo-fullscreen #opponentChat.fs-chat-open{
+  display:block!important;position:fixed!important;z-index:10001;
+  left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));
+  bottom:max(12px,env(safe-area-inset-bottom));width:auto;max-width:520px;
+  max-height:42dvh;margin:0 auto!important;box-shadow:0 8px 30px rgba(0,0,0,.35);
+}
+.wrap:fullscreen #opponentChat.fs-chat-open .opponent-chat-log,
+.wrap.pseudo-fullscreen #opponentChat.fs-chat-open .opponent-chat-log{max-height:30dvh}
+.wrap:fullscreen .fullscreen-tools,.wrap.pseudo-fullscreen .fullscreen-tools{
+  display:flex!important;position:fixed;z-index:10003;top:max(10px,env(safe-area-inset-top));
+  left:max(10px,env(safe-area-inset-left));gap:8px;align-items:center;
+}
+.fullscreen-tools button{flex:0 0 auto;min-height:40px;padding:8px 12px;font-size:12px;
+  background:rgba(25,35,29,.88);color:#fff;border:1px solid rgba(255,255,255,.28);
+  box-shadow:0 3px 12px rgba(0,0,0,.28);backdrop-filter:blur(8px)}
+@media(max-width:420px){
+ .wrap:fullscreen .fullscreen-tools,.wrap.pseudo-fullscreen .fullscreen-tools{gap:6px}
+ .fullscreen-tools button{padding:8px 10px;font-size:11px}
+}
 </style>
 </head>
 <body>
@@ -327,6 +355,30 @@ fsButton.onclick = async () => {
   syncFullscreenButton();
 };
 document.addEventListener('fullscreenchange', syncFullscreenButton);
+const fsSettingsToggle = $('fsSettingsToggle');
+const fsChatToggle = $('fsChatToggle');
+const fsSettings = $('settings');
+const fsChat = $('opponentChat');
+fsSettingsToggle.onclick = () => {
+  fsSettings.open = !fsSettings.open;
+  fsSettingsToggle.setAttribute('aria-expanded', String(fsSettings.open));
+};
+fsChatToggle.onclick = () => {
+  const opened = fsChat.classList.toggle('fs-chat-open');
+  fsChatToggle.setAttribute('aria-expanded', String(opened));
+  if (opened) $('opponentChatLog').scrollTop = $('opponentChatLog').scrollHeight;
+};
+function syncFullscreenTools() {
+  const active = document.fullscreenElement === wrap || wrap.classList.contains('pseudo-fullscreen');
+  if (!active) {
+    fsSettings.open = false;
+    fsChat.classList.remove('fs-chat-open');
+    fsSettingsToggle.setAttribute('aria-expanded','false');
+    fsChatToggle.setAttribute('aria-expanded','false');
+  }
+}
+document.addEventListener('fullscreenchange', syncFullscreenTools);
+
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && wrap.classList.contains('pseudo-fullscreen')) {
     wrap.classList.remove('pseudo-fullscreen');
