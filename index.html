@@ -846,10 +846,28 @@ function join(code) {
   });
 }
 function newGame() {
-  if (on() && room) { g++; resetBoard2(); render(); push(); }
-init();
+  if (on()) {
+    if (!room || !room.open) {
+      setOl('Hubungkan kedua pemain terlebih dahulu sebelum memulai pertandingan baru.');
+      return;
+    }
+    // Keep the connection and player sides; advance the game generation so
+    // both peers can reject stale moves from the previous match.
+    g++;
+    resetBoard2();
+    render();
+    push();
+    return;
+  }
+  init();
 }
-function resetBoard2() { const k = g; resetBoard(); g = k; }
+function resetBoard2() {
+  const generation = g;
+  const playerSide = me;
+  resetBoard();
+  g = generation;
+  me = playerSide;
+}
 function updateOpponentInfo() {
   const info = $('opponentInfo');
   if (!info) return;
