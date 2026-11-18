@@ -1,4 +1,4 @@
-const CACHE_NAME = "chess-multiplayer-pwa-v2";
+const CACHE_NAME = "chess-multiplayer-pwa-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
