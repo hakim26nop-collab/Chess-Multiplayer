@@ -250,12 +250,32 @@ button,select,input{min-width:0}
  .wrap:fullscreen .fullscreen-tools,.wrap.pseudo-fullscreen .fullscreen-tools{gap:6px}
  .fullscreen-tools button{padding:8px 10px;font-size:11px}
 }
+
+/* Put the most-used match actions above the board */
+#primaryActions{order:2;margin-top:2px;margin-bottom:2px}
+#status{order:1}
+#board{order:3}
+#captured{order:4}
+#stats{order:5}
+#gameSetup{order:6}
+#matchTools{order:8}
+#ol{order:9}
+#settings{order:10}
+#moveHistory{order:11}
+@media(max-width:520px){
+ #primaryActions{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ #primaryActions button{min-height:44px;padding:10px 8px}
+}
 </style>
 </head>
 <body>
 <div class="wrap" id="wrap">
   <div id="topbar"><h1>♟ Chess</h1><div class="top-actions"><button id="installApp" class="alt" type="button">↓ Install App</button><button id="fullscreen" class="alt" type="button">⛶ Fullscreen</button></div></div>
   <div id="status"></div>
+  <div class="row" id="primaryActions">
+    <button id="new">New Game</button>
+    <button id="undo" class="alt">Undo Move</button>
+  </div>
   <div id="board"></div>
   <div id="captured" aria-label="Captured pieces"><div class="side" id="whiteCaptured"><span class="cap-label">WHITE TAKES</span></div><div class="side" id="blackCaptured"><span class="cap-label">BLACK TAKES</span></div></div>
   <div id="stats">Local record: 0 wins · 0 losses · 0 draws</div>
@@ -284,10 +304,7 @@ button,select,input{min-width:0}
       <option value="b">Play as: Black</option>
     </select>
   </div>
-  <div class="row" id="primaryActions">
-    <button id="new">New Game</button>
-    <button id="undo" class="alt">Undo Move</button>
-  </div>
+  
   <div class="control-heading">Game controls</div>
   <div class="row" id="matchTools"><button id="resign" class="alt" type="button">Resign</button><button id="drawOffer" class="alt" type="button">Offer draw</button><button id="claimDraw" class="alt" type="button">Claim draw</button><button id="exportPgn" class="alt" type="button">Export PGN</button></div>
   <div id="ol" class="hid">
