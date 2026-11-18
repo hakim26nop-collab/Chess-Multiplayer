@@ -169,8 +169,13 @@ button:active{transform:scale(.97)}
 input{font:inherit;border:0;border-radius:12px;padding:11px;min-height:44px;flex:1 1 100px;min-width:0;max-width:100%;background:var(--card);color:var(--text);box-shadow:0 1px 6px rgba(0,0,0,.15);text-align:center;letter-spacing:2px;font-weight:600}
 #olm{font-size:14px;color:var(--muted);text-align:center;min-height:20px;margin-top:8px}
 .opponent-info{flex:1 1 100%;font-size:12px;line-height:1.45;color:var(--muted);padding:2px 4px 6px}
-.opponent-reaction{flex:1 1 100%;padding:10px 12px;margin:0 0 5px;border-radius:12px;background:var(--card);color:var(--text);font-size:13px;line-height:1.45;border:1px solid var(--border,rgba(128,128,128,.22));box-shadow:0 2px 8px rgba(0,0,0,.08)}
-.opponent-reaction strong{display:block;font-size:12px;margin-bottom:3px;color:var(--accent)}
+.opponent-chat{flex:1 1 100%;min-width:0;margin:2px 0 8px;border:1px solid var(--border,rgba(128,128,128,.22));border-radius:14px;overflow:hidden;background:var(--card);box-shadow:0 2px 9px rgba(0,0,0,.08)}
+.opponent-chat-head{padding:9px 12px;font-size:12px;font-weight:800;border-bottom:1px solid var(--border,rgba(128,128,128,.18));color:var(--text)}
+.opponent-chat-log{display:flex;flex-direction:column;gap:8px;max-height:190px;overflow-y:auto;padding:10px}
+.chat-bubble{max-width:88%;padding:8px 11px;border-radius:13px;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.chat-bubble.player{align-self:flex-end;background:var(--accent);color:white;border-bottom-right-radius:4px}
+.chat-bubble.character{align-self:flex-start;background:var(--bg);color:var(--text);border:1px solid var(--border,rgba(128,128,128,.18));border-bottom-left-radius:4px}
+.chat-name{display:block;font-size:10px;font-weight:800;opacity:.8;margin-bottom:3px}
 button,select{font:inherit;border:0;border-radius:12px;padding:11px;min-height:44px;min-width:0;max-width:100%;font-weight:600;cursor:pointer;flex:1 1 120px;touch-action:manipulation}
 button{background:var(--accent);color:#fff}
 button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px rgba(0,0,0,.15)}
@@ -197,7 +202,12 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
       <option value="o">Online (remote friend)</option>
     </select>
     <div id="opponentInfo" class="opponent-info" aria-live="polite"></div>
-    <div id="opponentReaction" class="opponent-reaction hid" role="status" aria-live="polite"></div>
+    <section id="opponentChat" class="opponent-chat hid" aria-label="Percakapan dengan lawan komputer">
+      <div class="opponent-chat-head">💬 Percakapan pertandingan</div>
+      <div id="opponentChatLog" class="opponent-chat-log" aria-live="polite">
+        <div class="chat-bubble character">Pilih lawan untuk memulai percakapan.</div>
+      </div>
+    </section>
     <select id="side">
       <option value="w">Play as: White</option>
       <option value="b">Play as: Black</option>
@@ -450,13 +460,20 @@ const REACTION_LINES = {
   forced: ['Sepertinya itu satu-satunya langkah yang tersedia.','Langkah terpaksa, tidak banyak pilihan.'],
   unrated: ['Menarik. Mari lihat kelanjutannya.']
 };
-function showOpponentReaction(grade) {
-  const box = $('opponentReaction'), profile = AI_PROFILES[$('mode').value];
-  if (!box || !profile) return;
+function showOpponentReaction(grade, moveText) {
+  const panel = $('opponentChat'), log = $('opponentChatLog'), profile = AI_PROFILES[$('mode').value];
+  if (!panel || !log || !profile) return;
   const lines = REACTION_LINES[grade] || REACTION_LINES.unrated;
   const line = lines[Math.floor(Math.random() * lines.length)];
-  box.innerHTML = '<strong>' + profile.name + ' bereaksi</strong>' + line;
-  box.classList.remove('hid');
+  const player = document.createElement('div');
+  player.className = 'chat-bubble player';
+  player.innerHTML = '<span class="chat-name">Kamu</span>Aku memainkan ' + moveText + '.';
+  const reply = document.createElement('div');
+  reply.className = 'chat-bubble character';
+  reply.innerHTML = '<span class="chat-name">' + profile.name + '</span>' + line;
+  log.append(player, reply);
+  panel.classList.remove('hid');
+  log.scrollTop = log.scrollHeight;
 }
 
 function aiMove() {
@@ -583,8 +600,8 @@ function doMove(m) {
   const wasCapture = !!s.b[m.to] || !!m.ep;
   const pieceStartRect = board.querySelector('.sq[data-i="' + m.from + '"] span')?.getBoundingClientRect() || null;
   const quality=reviewMove(s,m);
-  if (isHumanMove && ai()) showOpponentReaction(quality);
-  const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice(),moveGrades:moveGrades.slice()});s=apply(s,m);last=[m.from,m.to];sel=-1;mv+=A[m.from]+A[m.to];sanMoves.push(san);promos.push(m.promotion||'');moveGrades.push(quality);if(on()&&room)push(m);
+  const san=toSAN(s,m);
+  if (isHumanMove && ai()) showOpponentReaction(quality, san);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice(),moveGrades:moveGrades.slice()});s=apply(s,m);last=[m.from,m.to];sel=-1;mv+=A[m.from]+A[m.to];sanMoves.push(san);promos.push(m.promotion||'');moveGrades.push(quality);if(on()&&room)push(m);
   playMoveSound(wasCapture, inChk(s.b, s.turn));
   render(pieceStartRect);
   if (ai() && s.turn !== me && legal(s).length) { busy = true; tm = setTimeout(aiMove, 60); }
@@ -671,6 +688,8 @@ board.onclick = e => {
 
 function init() {
   updateOpponentInfo();
+  const chatLog = $('opponentChatLog');
+  if (chatLog) chatLog.innerHTML = '<div class="chat-bubble character">Pertandingan baru dimulai. Silakan lakukan langkah pertama.</div>';
   resultRecorded = false; gameOver=false; pgnResult='*';
   const back = 'rnbqkbnr'.split(''), front = 'RNBQKBNR'.split('');
   s = { b: [...back, ...Array(8).fill('p'), ...Array(32).fill(''), ...Array(8).fill('P'), ...front], turn: 'w', r: 'KQkq', ep: -1 };
