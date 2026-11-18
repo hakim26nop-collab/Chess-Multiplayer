@@ -422,11 +422,21 @@ function search(s, d, a, b) {
 }
 function aiMove() {
   if(gameOver){busy=false;return;}
-  const L = legal(s), depth = { e: 1, m: 2, h: 3 }[$('mode').value];
+  const L = legal(s), level = $('mode').value;
+  if (!L.length) { busy=false; return; }
+
+  // Keep every level approachable: Easy is fully random, Medium is shallow
+  // with strong variation, and Hard still makes plans but sometimes errs.
+  const depth = { e: 0, m: 1, h: 2 }[level] ?? 1;
   let best = null, bv = -Infinity;
-  for (const m of L) {
-    const v = -search(apply(s, m), depth - 1, -1e9, 1e9) + Math.random() * (depth === 1 ? 60 : 8);
-    if (v > bv) { bv = v; best = m; }
+  if (depth === 0) {
+    best = L[Math.floor(Math.random() * L.length)];
+  } else {
+    const noise = depth === 1 ? 180 : 100;
+    for (const m of L) {
+      const v = -search(apply(s, m), depth - 1, -1e9, 1e9) + Math.random() * noise;
+      if (v > bv) { bv = v; best = m; }
+    }
   }
   busy = false;
   if (best) doMove(best);
