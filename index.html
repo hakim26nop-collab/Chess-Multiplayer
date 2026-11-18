@@ -168,6 +168,7 @@ button:active{transform:scale(.97)}
 .hid{display:none!important}
 input{font:inherit;border:0;border-radius:12px;padding:11px;min-height:44px;flex:1 1 100px;min-width:0;max-width:100%;background:var(--card);color:var(--text);box-shadow:0 1px 6px rgba(0,0,0,.15);text-align:center;letter-spacing:2px;font-weight:600}
 #olm{font-size:14px;color:var(--muted);text-align:center;min-height:20px;margin-top:8px}
+.opponent-info{flex:1 1 100%;font-size:12px;line-height:1.45;color:var(--muted);padding:2px 4px 6px}
 button,select{font:inherit;border:0;border-radius:12px;padding:11px;min-height:44px;min-width:0;max-width:100%;font-weight:600;cursor:pointer;flex:1 1 120px;touch-action:manipulation}
 button{background:var(--accent);color:#fff}
 button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px rgba(0,0,0,.15)}
@@ -183,12 +184,17 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
   <div class="control-heading">Game setup</div>
   <div class="row" id="gameSetup">
     <select id="mode">
-      <option value="e">Computer: Easy</option>
-      <option value="m" selected>Computer: Medium</option>
-      <option value="h">Computer: Hard</option>
+      <option value="morphy">vs Paul Morphy</option>
+      <option value="capa">vs José Raúl Capablanca</option>
+      <option value="fischer" selected>vs Bobby Fischer</option>
+      <option value="tal">vs Mikhail Tal</option>
+      <option value="karpov">vs Anatoly Karpov</option>
+      <option value="kasparov">vs Garry Kasparov</option>
+      <option value="carlsen">vs Magnus Carlsen</option>
       <option value="2">Local 2-player</option>
       <option value="o">Online (remote friend)</option>
     </select>
+    <div id="opponentInfo" class="opponent-info" aria-live="polite"></div>
     <select id="side">
       <option value="w">Play as: White</option>
       <option value="b">Play as: Black</option>
@@ -302,7 +308,7 @@ const dN = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
 const dK = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
 const RT = { 0: 'q', 4: 'kq', 7: 'k', 56: 'Q', 60: 'KQ', 63: 'K' };
 let s, hist, sel, last, busy, me = 'w', tm, resultRecorded = false, gameOver = false;
-const ai = () => 'emh'.includes($('mode').value);
+const ai = () => !['2','o'].includes($('mode').value);
 const on = () => $('mode').value === 'o';
 const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-';
 let mv = '', sanMoves = [], promos = [], moveGrades = [], pgnResult='*', room = null, rc = '', g = 0, unsub = null, ready = false;
@@ -420,23 +426,29 @@ function search(s, d, a, b) {
   }
   return a;
 }
+const AI_PROFILES = {
+  morphy:   { depth:1, noise:190, attack:28, capture:12, name:'Paul Morphy', style:'Gaya klasik: cepat mengembangkan bidak dan mencari serangan terbuka.' },
+  capa:     { depth:1, noise:95,  attack:8,  capture:8,  name:'José Raúl Capablanca', style:'Tenang dan rapi: mengutamakan posisi serta akhir permainan.' },
+  fischer:  { depth:2, noise:85,  attack:16, capture:14, name:'Bobby Fischer', style:'Presisi dan taktis: mencari langkah aktif serta peluang menang materi.' },
+  tal:      { depth:2, noise:210, attack:55, capture:22, name:'Mikhail Tal', style:'Agresif dan penuh risiko: sering memilih serangan yang tajam.' },
+  karpov:   { depth:2, noise:38,  attack:5,  capture:10, name:'Anatoly Karpov', style:'Posisional: sabar, solid, dan menekan kelemahan lawan.' },
+  kasparov: { depth:2, noise:78,  attack:34, capture:16, name:'Garry Kasparov', style:'Dinamis: permainan aktif, inisiatif, dan serangan.' },
+  carlsen:  { depth:2, noise:28,  attack:10, capture:12, name:'Magnus Carlsen', style:'Seimbang: mencari posisi nyaman dan keunggulan kecil.' }
+};
 function aiMove() {
   if(gameOver){busy=false;return;}
-  const L = legal(s), level = $('mode').value;
+  const L = legal(s), profile = AI_PROFILES[$('mode').value] || AI_PROFILES.fischer;
   if (!L.length) { busy=false; return; }
-
-  // Keep every level approachable: Easy is fully random, Medium is shallow
-  // with strong variation, and Hard still makes plans but sometimes errs.
-  const depth = { e: 0, m: 1, h: 2 }[level] ?? 1;
   let best = null, bv = -Infinity;
-  if (depth === 0) {
-    best = L[Math.floor(Math.random() * L.length)];
-  } else {
-    const noise = depth === 1 ? 180 : 100;
-    for (const m of L) {
-      const v = -search(apply(s, m), depth - 1, -1e9, 1e9) + Math.random() * noise;
-      if (v > bv) { bv = v; best = m; }
-    }
+  for (const m of L) {
+    const next = apply(s, m);
+    const captured = s.b[m.to] || (m.ep ? (s.turn === 'w' ? 'p' : 'P') : '');
+    const givesCheck = inChk(next.b, next.turn);
+    const score = -search(next, profile.depth - 1, -1e9, 1e9)
+      + (givesCheck ? profile.attack : 0)
+      + (captured ? profile.capture * (V[captured.toLowerCase()] / 100) : 0)
+      + Math.random() * profile.noise;
+    if (score > bv) { bv = score; best = m; }
   }
   busy = false;
   if (best) doMove(best);
@@ -632,6 +644,7 @@ board.onclick = e => {
 };
 
 function init() {
+  updateOpponentInfo();
   resultRecorded = false; gameOver=false; pgnResult='*';
   const back = 'rnbqkbnr'.split(''), front = 'RNBQKBNR'.split('');
   s = { b: [...back, ...Array(8).fill('p'), ...Array(32).fill(''), ...Array(8).fill('P'), ...front], turn: 'w', r: 'KQkq', ep: -1 };
@@ -792,12 +805,20 @@ function newGame() {
 init();
 }
 function resetBoard2() { const k = g; resetBoard(); g = k; }
+function updateOpponentInfo() {
+  const info = $('opponentInfo');
+  if (!info) return;
+  const profile = AI_PROFILES[$('mode').value];
+  info.textContent = profile ? profile.name + ' · ' + profile.style + ' (gaya terinspirasi, bukan simulasi akurat pemain asli).' : '';
+  info.classList.toggle('hid', !profile);
+}
 function modeChange() {
   leaveRoom();
   const o = on();
   $('ol').classList.toggle('hid', !o);
   $('side').classList.toggle('hid', o);
   $('undo').classList.toggle('hid', o);
+  updateOpponentInfo();
   init();
 }
 $('mk').onclick = () => host(0);
