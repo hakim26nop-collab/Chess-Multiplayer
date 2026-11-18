@@ -859,8 +859,10 @@ function updateOpponentInfo() {
 }
 function modeChange() {
   leaveRoom();
-  const reaction = $('opponentReaction');
-  if (reaction) reaction.classList.add('hid');
+  const chat = $('opponentChat');
+  const chatLog = $('opponentChatLog');
+  if (chat) chat.classList.toggle('hid', !AI_PROFILES[$('mode').value]);
+  if (chatLog) chatLog.innerHTML = '<div class="chat-bubble character">Mode baru dipilih. Mulai pertandingan untuk mengobrol.</div>';
   const o = on();
   $('ol').classList.toggle('hid', !o);
   $('side').classList.toggle('hid', o);
