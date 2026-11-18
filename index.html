@@ -169,6 +169,8 @@ button:active{transform:scale(.97)}
 input{font:inherit;border:0;border-radius:12px;padding:11px;min-height:44px;flex:1 1 100px;min-width:0;max-width:100%;background:var(--card);color:var(--text);box-shadow:0 1px 6px rgba(0,0,0,.15);text-align:center;letter-spacing:2px;font-weight:600}
 #olm{font-size:14px;color:var(--muted);text-align:center;min-height:20px;margin-top:8px}
 .opponent-info{flex:1 1 100%;font-size:12px;line-height:1.45;color:var(--muted);padding:2px 4px 6px}
+.opponent-reaction{flex:1 1 100%;padding:10px 12px;margin:0 0 5px;border-radius:12px;background:var(--card);color:var(--text);font-size:13px;line-height:1.45;border:1px solid var(--border,rgba(128,128,128,.22));box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.opponent-reaction strong{display:block;font-size:12px;margin-bottom:3px;color:var(--accent)}
 button,select{font:inherit;border:0;border-radius:12px;padding:11px;min-height:44px;min-width:0;max-width:100%;font-weight:600;cursor:pointer;flex:1 1 120px;touch-action:manipulation}
 button{background:var(--accent);color:#fff}
 button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px rgba(0,0,0,.15)}
@@ -195,6 +197,7 @@ button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px 
       <option value="o">Online (remote friend)</option>
     </select>
     <div id="opponentInfo" class="opponent-info" aria-live="polite"></div>
+    <div id="opponentReaction" class="opponent-reaction hid" role="status" aria-live="polite"></div>
     <select id="side">
       <option value="w">Play as: White</option>
       <option value="b">Play as: Black</option>
@@ -435,6 +438,27 @@ const AI_PROFILES = {
   kasparov: { depth:2, noise:78,  attack:34, capture:16, name:'Garry Kasparov', style:'Dinamis: permainan aktif, inisiatif, dan serangan.' },
   carlsen:  { depth:2, noise:28,  attack:10, capture:12, name:'Magnus Carlsen', style:'Seimbang: mencari posisi nyaman dan keunggulan kecil.' }
 };
+const REACTION_LINES = {
+  brilliant: ['Langkah luar biasa! Itu sulit diprediksi.','Brilian! Kamu menemukan ide yang tajam.'],
+  great: ['Bagus sekali. Langkah yang kuat.','Pilihan yang sangat menarik.'],
+  best: ['Itu langkah terbaik di posisi ini.','Tepat. Aku juga akan mempertimbangkan langkah itu.'],
+  excellent: ['Rapi. Kamu menjaga posisi dengan baik.','Langkah yang solid.'],
+  good: ['Cukup bagus. Pertahankan konsentrasimu.','Masuk akal. Permainan masih seimbang.'],
+  inaccuracy: ['Hmm, ada pilihan yang sedikit lebih baik.','Coba perhatikan lagi ancaman di papan.'],
+  mistake: ['Sepertinya itu kurang tepat. Masih bisa diperbaiki.','Hati-hati, ada kesempatan yang terlewat.'],
+  blunder: ['Ups, itu memberi peluang besar. Tetap fokus!','Ada ancaman yang terlewat. Jangan menyerah!'],
+  forced: ['Sepertinya itu satu-satunya langkah yang tersedia.','Langkah terpaksa, tidak banyak pilihan.'],
+  unrated: ['Menarik. Mari lihat kelanjutannya.']
+};
+function showOpponentReaction(grade) {
+  const box = $('opponentReaction'), profile = AI_PROFILES[$('mode').value];
+  if (!box || !profile) return;
+  const lines = REACTION_LINES[grade] || REACTION_LINES.unrated;
+  const line = lines[Math.floor(Math.random() * lines.length)];
+  box.innerHTML = '<strong>' + profile.name + ' bereaksi</strong>' + line;
+  box.classList.remove('hid');
+}
+
 function aiMove() {
   if(gameOver){busy=false;return;}
   const L = legal(s), profile = AI_PROFILES[$('mode').value] || AI_PROFILES.fischer;
@@ -555,9 +579,11 @@ function recordResult(check) {
 }
 function doMove(m) {
   if(gameOver)return;
+  const isHumanMove = !ai() || s.turn === me;
   const wasCapture = !!s.b[m.to] || !!m.ep;
   const pieceStartRect = board.querySelector('.sq[data-i="' + m.from + '"] span')?.getBoundingClientRect() || null;
   const quality=reviewMove(s,m);
+  if (isHumanMove && ai()) showOpponentReaction(quality);
   const san=toSAN(s,m);hist.push({s,last,mv,sanMoves:sanMoves.slice(),promos:promos.slice(),moveGrades:moveGrades.slice()});s=apply(s,m);last=[m.from,m.to];sel=-1;mv+=A[m.from]+A[m.to];sanMoves.push(san);promos.push(m.promotion||'');moveGrades.push(quality);if(on()&&room)push(m);
   playMoveSound(wasCapture, inChk(s.b, s.turn));
   render(pieceStartRect);
@@ -814,6 +840,8 @@ function updateOpponentInfo() {
 }
 function modeChange() {
   leaveRoom();
+  const reaction = $('opponentReaction');
+  if (reaction) reaction.classList.add('hid');
   const o = on();
   $('ol').classList.toggle('hid', !o);
   $('side').classList.toggle('hid', o);
