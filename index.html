@@ -179,6 +179,49 @@ input{font:inherit;border:0;border-radius:12px;padding:11px;min-height:44px;flex
 button,select{font:inherit;border:0;border-radius:12px;padding:11px;min-height:44px;min-width:0;max-width:100%;font-weight:600;cursor:pointer;flex:1 1 120px;touch-action:manipulation}
 button{background:var(--accent);color:#fff}
 button.alt,select{background:var(--card);color:var(--text);box-shadow:0 1px 6px rgba(0,0,0,.15)}
+
+/* Layout refresh: breathing room and consistent control groups */
+.wrap{width:min(100%,760px);gap:14px;align-items:stretch}
+#topbar,#status,#captured,#stats,#moveHistory,#settings,#ol,.control-heading,#gameSetup,#primaryActions,#matchTools{width:min(100%,var(--bs));margin-left:auto;margin-right:auto}
+#topbar{min-height:44px}
+.top-actions{gap:9px;flex-wrap:wrap;justify-content:flex-end}
+#board{align-self:center}
+.control-heading{margin:5px auto -5px}
+#gameSetup{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(130px,1fr);gap:10px}
+#gameSetup #mode,#gameSetup #side{width:100%;min-width:0}
+#opponentInfo,#opponentChat{grid-column:1/-1;min-width:0}
+#primaryActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+#primaryActions button{min-height:48px;padding:12px}
+#matchTools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+#matchTools button{width:100%;min-height:44px;padding:10px 12px;font-size:14px}
+#matchTools #exportPgn{grid-column:auto}
+#ol{padding:12px;background:var(--card);border-radius:14px;box-shadow:0 1px 6px rgba(0,0,0,.1)}
+#ol>.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:9px}
+#ol #mk{grid-column:1}
+#ol #code{grid-column:2;grid-row:1}
+#ol #jn{grid-column:1/-1}
+#ol #inviteActions{margin-top:9px}
+#olm{margin-top:9px;line-height:1.5;color:var(--muted);font-size:13px}
+button,select,input{min-width:0}
+#settings,#moveHistory{padding:13px 15px}
+@media(max-width:520px){
+ .wrap{gap:12px}
+ #topbar{align-items:flex-start}
+ .top-actions{gap:6px}
+ #fullscreen,#installApp{padding:9px 10px;font-size:12px}
+ #gameSetup{grid-template-columns:minmax(0,1fr);gap:8px}
+ #opponentInfo,#opponentChat{grid-column:1}
+ #primaryActions,#matchTools{gap:8px}
+ #primaryActions button{min-height:46px;font-size:14px}
+ #matchTools button{min-height:44px;font-size:13px}
+ #ol>.row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ #ol #mk{grid-column:1;grid-row:1}
+ #ol #code{grid-column:1/-1;grid-row:2}
+ #ol #jn{grid-column:2;grid-row:1}
+}
+@media(min-width:700px){
+ #matchTools{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
 </style>
 </head>
 <body>
